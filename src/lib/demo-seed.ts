@@ -1,7 +1,6 @@
 // A realistic sample morning for demos: most rooms report, a few skip checks,
 // a few never report. Dated today in the school's timezone.
 import { findProblems, type ReportInput } from "./report";
-import { addReport } from "./store";
 import { addMinutes, localParts, zonedTime } from "./time";
 import type { Check, Room, Schedule, Staff } from "./types";
 
@@ -15,7 +14,7 @@ const SKIPS: Record<string, string> = {
 };
 const NON_ATTEMPTING: Record<string, number> = { "K-9": 2, "K-39": 1 };
 
-export function seedSampleDay(input: {
+export function sampleDay(input: {
   rooms: Room[];
   checks: Check[];
   staff: Staff[];
@@ -27,11 +26,14 @@ export function seedSampleDay(input: {
   const teachers = input.staff.filter((s) => s.role === "teacher");
   const incharges = input.staff.filter((s) => s.role === "floor_incharge");
   const testRooms = input.rooms.filter((r) => r.isTestRoom);
-  let count = 0;
+  const out: { report: ReportInput; problems: string[]; receivedAt: Date }[] = [];
 
   const add = (report: ReportInput, hhmm: string) => {
-    addReport(report, findProblems(report, checks), zonedTime(dateKey, hhmm, schedule.timezone));
-    count++;
+    out.push({
+      report,
+      problems: findProblems(report, checks),
+      receivedAt: zonedTime(dateKey, hhmm, schedule.timezone),
+    });
   };
 
   testRooms.forEach((room, i) => {
@@ -91,5 +93,5 @@ export function seedSampleDay(input: {
       addMinutes("08:20", who * 3),
     );
   }
-  return count;
+  return out;
 }

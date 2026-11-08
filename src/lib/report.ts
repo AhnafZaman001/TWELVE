@@ -24,6 +24,12 @@ export const reportSchema = z.object({
 
 export type ReportInput = z.infer<typeof reportSchema>;
 
+export interface StoredReport extends ReportInput {
+  id: string;
+  receivedAt: string; // ISO
+  problems: string[];
+}
+
 // The server decides what is a problem, so the phone cannot hide an alert.
 export function findProblems(report: ReportInput, checks: Check[]): string[] {
   const problems: string[] = [];

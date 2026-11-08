@@ -1,39 +1,20 @@
-// Data access. Reads local sample data for now; swaps to Supabase later
-// without changing the pages that call it.
-import { checks, rooms, schedule, staff } from "./sample-data";
-import type { Round } from "./types";
+// Picks the storage backend: Supabase when its keys are set in .env.local,
+// otherwise in-memory sample data so the app still runs.
+import "server-only";
+import { memoryBackend } from "./backend/memory";
+import type { Backend } from "./backend/types";
+import { localParts } from "./time";
+import type { Round, Schedule } from "./types";
 
-export function getRoomByToken(token: string) {
-  return rooms.find((r) => r.token === token) ?? null;
-}
+const hasSupabase = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-export function getChecks() {
-  return checks;
-}
-
-export function getStaff() {
-  return staff;
-}
-
-export function getSchedule() {
-  return schedule;
-}
-
-export function getTestRooms() {
-  return rooms.filter((r) => r.isTestRoom);
-}
-
-export function getRooms() {
-  return rooms;
+export async function getBackend(): Promise<Backend> {
+  if (!hasSupabase) return memoryBackend;
+  const { supabaseBackend } = await import("./backend/supabase");
+  return supabaseBackend;
 }
 
 // Round 2 starts at schedule.round2Time in the school's timezone.
-export function currentRound(now: Date = new Date()): Round {
-  const hhmm = new Intl.DateTimeFormat("en-GB", {
-    timeZone: schedule.timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(now);
-  return hhmm >= schedule.round2Time ? 2 : 1;
+export function currentRound(schedule: Schedule, now: Date = new Date()): Round {
+  return localParts(now, schedule.timezone).hhmm >= schedule.round2Time ? 2 : 1;
 }

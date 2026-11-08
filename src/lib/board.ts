@@ -1,5 +1,5 @@
 // Builds the principal's live board from today's reports. Pure: no I/O.
-import type { StoredReport } from "./store";
+import type { StoredReport } from "./report";
 import { addMinutes, localParts } from "./time";
 import type { Check, Room, Round, Schedule, Staff } from "./types";
 
