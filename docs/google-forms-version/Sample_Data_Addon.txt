@@ -1,0 +1,59 @@
+
+// ===== SAMPLE DATA (for testing only) =====
+// fillSampleData: submits one test report for each room K-2 to K-50 (names start with "TEST -")
+// deleteSampleData: removes all "TEST -" reports from the Form and the Sheet
+function fillSampleData() {
+  const form = FormApp.openById(PROPS.getProperty('FORM_ID'));
+  const item = {};
+  form.getItems().forEach(it => item[it.getTitle()] = it);
+  const text = (t, v) => item[t].asTextItem().createResponse(String(v));
+  const pick = (t, v) => item[t].asMultipleChoiceItem().createResponse(v);
+  const para = (t, v) => item[t].asParagraphTextItem().createResponse(v);
+  const NO_ROOMS = { 7:0, 13:1, 22:2, 31:3, 45:4 };   // room number -> which check is "No"
+
+  let count = 0;
+  for (let n = 2; n <= 50; n++) {
+    const room = ROOMS.filter(r => r === 'K-' + n || r.indexOf('K-' + n + ' |') === 0)[0];
+    const isFI = n % 5 === 0;
+    const total = 35 + (n * 7) % 11, absent = n % 5;
+    const present = total - absent - (n === 27 ? 1 : 0);
+    const nonatt = [9, 18, 36].indexOf(n) >= 0 ? 1 + n % 2 : 0;
+
+    const r = form.createResponse()
+        .withItemResponse(item[F.room].asListItem().createResponse(room))
+        .withItemResponse(text(F.name, 'TEST - Teacher ' + n))
+        .withItemResponse(pick(F.role, isFI ? 'Floor Incharge' : 'Invigilator'));
+    if (isFI) r.withItemResponse(pick(FI_CHECK, (n === 20 || n === 40) ? 'No' : 'Yes'));
+    CHECKS.forEach((c, i) => r.withItemResponse(pick(c, NO_ROOMS[n] === i ? 'No' : 'Yes')));
+    r.withItemResponse(text(F.total, total))
+     .withItemResponse(text(F.present, present))
+     .withItemResponse(text(F.absent, absent))
+     .withItemResponse(text(F.late, n % 4))
+     .withItemResponse(text(F.nonatt, nonatt));
+    if (nonatt) r.withItemResponse(para(F.names, nonatt === 1 ? 'Student A' : 'Student A, Student B'));
+    if (n === 12 || n === 44) r.withItemResponse(para(F.remarks, 'Sample remark'));
+    r.submit();
+    count++;
+  }
+  Logger.log('Sample reports submitted: ' + count);
+}
+
+function deleteSampleData() {
+  const form = FormApp.openById(PROPS.getProperty('FORM_ID'));
+  let formCount = 0;
+  form.getResponses().forEach(resp => {
+    const isTest = resp.getItemResponses().some(ir =>
+        ir.getItem().getTitle() === F.name && String(ir.getResponse()).indexOf('TEST -') === 0);
+    if (isTest) { form.deleteResponse(resp.getId()); formCount++; }
+  });
+
+  const ss = SpreadsheetApp.openById(PROPS.getProperty('SHEET_ID'));
+  const sh = ss.getSheets().filter(s => s.getFormUrl())[0] || ss.getSheets()[0];
+  const data = sh.getDataRange().getValues();
+  const nameCol = data[0].indexOf(F.name);
+  let rowCount = 0;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][nameCol]).indexOf('TEST -') === 0) { sh.deleteRow(i + 1); rowCount++; }
+  }
+  Logger.log('Deleted ' + formCount + ' test responses from the Form and ' + rowCount + ' rows from the Sheet');
+}

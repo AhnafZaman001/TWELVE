@@ -1,0 +1,26 @@
+Please fill my Google Form with SAMPLE TEST DATA using the browser. This is my own school form and I am testing it.
+
+Form link (open this each time):
+https://docs.google.com/forms/d/e/1FAIpQLSdBtzRIdDRaAl5I83rZ2yrzpsHUr-WHLJjJeaQRUb9y7PNvHw/viewform
+
+Submit ONE response for each room from K-2 to K-50 (49 responses). In the "Room" dropdown choose the option that starts with that room number (for example "K-4 | F-1A" or "K-17").
+
+For each response:
+- Your name: "TEST - Teacher <room number>"  (example: "TEST - Teacher 4")  so I can delete them later
+- Reporting as: "Invigilator" for most rooms; choose "Floor Incharge" for every 5th room (K-5, K-10, K-15 ... K-50)
+- If Floor Incharge: "Teacher intimation about lagging?" -> Yes (but No for K-20 and K-40)
+- Whiteboard written?, Seating arranged?, A/B paper distributed properly?, Margin line intimation to students?,
+  Underlining intimation to students?, Highlighting intimation to students? -> mostly Yes.
+  Put exactly ONE "No" in rooms K-7, K-13, K-22, K-31 and K-45 (pick a different question each time).
+- Total students: a number between 35 and 45
+- Absent students: 0 to 4
+- Present students: Total minus Absent (must add up correctly), EXCEPT room K-27: make it 1 less so the totals don't match
+- Late arrivals: 0 to 3
+- Non-attempting students: 0 for most rooms; 1 or 2 for rooms K-9, K-18 and K-36
+- Names of non-attempting students: only when non-attempting is more than 0 (use made-up names like "Student A, Student B"); otherwise leave empty
+- Other remarks: leave empty, except write "Sample remark" for K-12 and K-44
+
+Rules:
+- Press Submit for each response, then open the form link again for the next room.
+- Do not change any form settings and do not edit the form itself.
+- At the end, tell me how many responses you submitted and list any room you could not submit.
