@@ -5,6 +5,10 @@
   --foreground: #1c1917;
   --muted: #78716c;
   --line: #e7e5e4;
+  --surface: #ffffff;
+  --accent: #047857;
+  --accent-ink: #ffffff;
+  --warn: #b45309;
 }
 
 @theme inline {
@@ -12,6 +16,10 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,6 +30,10 @@
     --foreground: #f5f5f4;
     --muted: #a8a29e;
     --line: #292524;
+    --surface: #1c1917;
+    --accent: #34d399;
+    --accent-ink: #052e1f;
+    --warn: #fbbf24;
   }
 }
 
