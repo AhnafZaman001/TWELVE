@@ -33,7 +33,7 @@ export const memoryBackend: Backend = {
     const created = {
       ...row,
       id: crypto.randomUUID(),
-      ...(kind === "rooms" ? { token: newToken() } : {}),
+      ...(kind === "rooms" ? { token: newToken(), qrIssuedAt: new Date().toISOString() } : {}),
     } as unknown as Entities[typeof kind];
     rows.push(created);
     return created;
@@ -50,11 +50,14 @@ export const memoryBackend: Backend = {
     if (kind === "rounds") s.checks = s.checks.filter((c) => c.roundId !== id);
   },
 
-  async newRoomToken(roomId) {
-    const room = state.setup.rooms.find((r) => r.id === roomId);
-    if (!room) throw new Error("Not found");
-    room.token = newToken();
-    return room;
+  async renewQr(roomIds) {
+    const now = new Date().toISOString();
+    const rooms = state.setup.rooms.filter((r) => roomIds.includes(r.id));
+    for (const room of rooms) {
+      room.token = newToken();
+      room.qrIssuedAt = now;
+    }
+    return rooms;
   },
 
   async saveReport({ receivedAt = new Date(), ...report }) {

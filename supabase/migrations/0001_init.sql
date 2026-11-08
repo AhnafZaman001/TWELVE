@@ -16,6 +16,7 @@ create table schools (
   end_time        text not null default '08:40',          -- HH:MM, school-local
   buffer_minutes  int  not null default 20 check (buffer_minutes between 0 and 240),
   test_weekdays   int[] not null default '{1,3,5}',       -- 1 = Monday … 7 = Sunday
+  qr_rotate_days  int  not null default 0 check (qr_rotate_days between 0 and 365), -- 0 = never
   created_at      timestamptz not null default now()
 );
 
@@ -31,6 +32,7 @@ create table rooms (
   school_id  uuid not null references schools(id) on delete cascade,
   code       text not null,
   qr_token   text not null unique default replace(gen_random_uuid()::text, '-', ''),
+  qr_issued_at timestamptz not null default now(),        -- when the current QR was made
   active     boolean not null default true,
   sort       int not null default 0
 );

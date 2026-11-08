@@ -14,7 +14,7 @@ export interface Backend {
   saveSchool(school: School): Promise<School>;
   upsert<K extends EntityKind>(kind: K, row: EntityInput<K>): Promise<Entities[K]>;
   remove(kind: EntityKind, id: string): Promise<void>;
-  newRoomToken(roomId: string): Promise<Room>;
+  renewQr(roomIds: string[]): Promise<Room[]>; // new token + issue date; old QRs stop working
 
   saveReport(report: NewReport): Promise<void>;
   listReports(dateKey: string): Promise<StoredReport[]>;

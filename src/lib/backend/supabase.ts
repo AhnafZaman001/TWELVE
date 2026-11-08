@@ -30,7 +30,7 @@ const COLUMNS: { [K in EntityKind]: { table: string; order: string; map: Partial
   rooms: {
     table: "rooms",
     order: "sort",
-    map: { id: "id", code: "code", token: "qr_token", active: "active", sort: "sort" },
+    map: { id: "id", code: "code", token: "qr_token", qrIssuedAt: "qr_issued_at", active: "active", sort: "sort" },
   },
   sections: {
     table: "sections",
@@ -82,13 +82,14 @@ interface SchoolRow {
   end_time: string;
   buffer_minutes: number;
   test_weekdays: number[];
+  qr_rotate_days: number;
 }
 
 async function school(): Promise<SchoolRow> {
   return must(
     await supabase
       .from("schools")
-      .select("id, name, timezone, end_time, buffer_minutes, test_weekdays")
+      .select("id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days")
       .eq("slug", SCHOOL_SLUG)
       .single<SchoolRow>(),
     `School '${SCHOOL_SLUG}'`,
@@ -101,6 +102,7 @@ const toSchool = (s: SchoolRow): School => ({
   endTime: s.end_time,
   bufferMinutes: s.buffer_minutes,
   testWeekdays: s.test_weekdays,
+  qrRotateDays: s.qr_rotate_days,
 });
 
 async function listKind<K extends EntityKind>(kind: K, schoolId: string): Promise<Entities[K][]> {
@@ -152,9 +154,10 @@ export const supabaseBackend: Backend = {
           end_time: next.endTime,
           buffer_minutes: next.bufferMinutes,
           test_weekdays: next.testWeekdays,
+          qr_rotate_days: next.qrRotateDays,
         })
         .eq("id", s.id)
-        .select("id, name, timezone, end_time, buffer_minutes, test_weekdays")
+        .select("id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days")
         .single<SchoolRow>(),
       "Save school",
     );
@@ -180,19 +183,24 @@ export const supabaseBackend: Backend = {
     if (error) throw new Error(`Delete ${kind}: ${error.message}`);
   },
 
-  async newRoomToken(roomId): Promise<Room> {
+  async renewQr(roomIds): Promise<Room[]> {
     const s = await school();
-    const row = must(
-      await supabase
-        .from("rooms")
-        .update({ qr_token: newToken() })
-        .eq("id", roomId)
-        .eq("school_id", s.id)
-        .select(selectCols("rooms"))
-        .single<Row>(),
-      "New QR code",
-    );
-    return fromDb("rooms", row);
+    const now = new Date().toISOString();
+    const out: Room[] = [];
+    for (const id of roomIds) {
+      const row = must(
+        await supabase
+          .from("rooms")
+          .update({ qr_token: newToken(), qr_issued_at: now })
+          .eq("id", id)
+          .eq("school_id", s.id)
+          .select(selectCols("rooms"))
+          .single<Row>(),
+        "New QR code",
+      );
+      out.push(fromDb("rooms", row));
+    }
+    return out;
   },
 
   async saveReport({ receivedAt = new Date(), ...r }) {

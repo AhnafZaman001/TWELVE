@@ -12,6 +12,7 @@ export interface School {
   endTime: string; // "HH:MM" when the test period ends
   bufferMinutes: number; // a round is "missing" this long after it starts
   testWeekdays: number[]; // 1 = Monday … 7 = Sunday
+  qrRotateDays: number; // renew every room's QR this often; 0 = only by hand
 }
 
 export interface Group {
@@ -24,6 +25,7 @@ export interface Room {
   id: string;
   code: string; // "K-4"
   token: string; // secret in the QR link
+  qrIssuedAt: string; // ISO, when the current QR was made
   active: boolean;
   sort: number;
 }

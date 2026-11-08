@@ -58,6 +58,7 @@ export const schoolSchema = z.object({
   endTime: hhmm,
   bufferMinutes: z.number().int().min(0).max(240),
   testWeekdays: z.array(z.number().int().min(1).max(7)).max(7),
+  qrRotateDays: z.number().int().min(0).max(365),
 });
 
 export function newToken() {

@@ -23,6 +23,7 @@ export function sampleSetup(): Setup {
     id: `room-k${n}`,
     code: `K-${n}`,
     token: `demo-k${n}`,
+    qrIssuedAt: "2026-11-01T00:00:00.000Z",
     active: true,
     sort: n,
   }));
@@ -83,6 +84,7 @@ export function sampleSetup(): Setup {
       endTime: "08:40",
       bufferMinutes: 20,
       testWeekdays: [1, 3, 5],
+      qrRotateDays: 0,
     },
     groups,
     rooms,

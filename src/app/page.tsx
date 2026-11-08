@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TwelveDial } from "@/components/twelve-dial";
 
 const steps = [
   {
@@ -17,16 +18,27 @@ const steps = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-12 px-4 py-16 sm:px-8">
-      <header className="flex flex-col gap-4">
-        <p className="text-sm font-medium tracking-widest text-muted uppercase">
-          Keystone Labs
-        </p>
-        <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">TWELVE</h1>
-        <p className="max-w-xl text-lg text-muted">
-          A live reminder system for test invigilation. Teachers are walked through every check,
-          room by room, while the test is running.
-        </p>
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-12 px-4 py-16 sm:px-8">
+      <header className="grid items-center gap-10 sm:grid-cols-[1fr_auto]">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm font-medium tracking-widest text-muted uppercase">Keystone Labs</p>
+          <h1 className="text-5xl font-semibold tracking-tight sm:text-6xl">TWELVE</h1>
+          <p className="max-w-xl text-lg text-muted">
+            A live reminder system for test invigilation. Teachers are walked through every check,
+            room by room, while the test is running.
+          </p>
+        </div>
+        <TwelveDial
+          accent="var(--accent)"
+          ink="var(--foreground)"
+          inner={0.46}
+          className="w-56 justify-self-center sm:w-64"
+        >
+          <span className="text-center">
+            <span className="block text-5xl font-bold tracking-tight text-accent tabular-nums">12</span>
+            <span className="block text-[10px] font-semibold tracking-[0.35em] text-muted">TWELVE</span>
+          </span>
+        </TwelveDial>
       </header>
 
       <ol className="grid gap-4 sm:grid-cols-3">

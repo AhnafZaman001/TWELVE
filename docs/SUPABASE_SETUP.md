@@ -18,6 +18,7 @@ report is saved in Supabase.
 1. In the project, open **SQL Editor** → **New query**.
 2. Paste all of `supabase/migrations/0001_init.sql` → **Run**. Expect "Success. No rows returned".
 3. New query again, paste all of `supabase/seed.sql` → **Run**.
+   Then run any later files in `supabase/migrations/` (0002, 0003, …) in order.
 4. Open **Table Editor**: you should see `rooms` (51 rows), `sections` (32), `groups` (2),
    `rounds` (2), `checks` (7), `staff` (33), `schools` (1).
 

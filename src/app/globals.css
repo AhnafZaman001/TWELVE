@@ -1,15 +1,17 @@
 @import "tailwindcss";
 
+/* TWELVE is dark by design: near-black surfaces, one emerald accent. */
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --line: #e7e5e4;
-  --surface: #ffffff;
-  --accent: #047857;
-  --accent-ink: #ffffff;
-  --warn: #b45309;
-  --danger: #b91c1c;
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #f5f5f4;
+  --muted: #a8a29e;
+  --line: #262626;
+  --surface: #141414;
+  --accent: #34d399;
+  --accent-ink: #052e1f;
+  --warn: #fbbf24;
+  --danger: #f87171;
 }
 
 @theme inline {
@@ -26,17 +28,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0a09;
-    --foreground: #f5f5f4;
-    --muted: #a8a29e;
-    --line: #292524;
-    --surface: #1c1917;
-    --accent: #34d399;
-    --accent-ink: #052e1f;
-    --warn: #fbbf24;
-    --danger: #f87171;
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    background: #fff;
   }
 }
 

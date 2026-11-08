@@ -172,7 +172,7 @@ export function AdminApp() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 print:block print:max-w-none print:p-0">
       <header className="flex flex-col gap-1 print:hidden">
         <p className="text-sm font-medium tracking-widest text-muted uppercase">TWELVE · Admin</p>
         <h1 className="text-3xl font-semibold tracking-tight">{setup.school.name}</h1>
