@@ -8,13 +8,22 @@ import { SchoolForm } from "./school-form";
 
 const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "QR codes"] as const;
 type Tab = (typeof TABS)[number];
+const tabSlug = (t: Tab) => t.toLowerCase().replaceAll(" ", "-");
 
 const yesNo = { type: "bool" } as const;
 
 export function AdminApp() {
   const [setup, setSetup] = useState<(Setup & { backend?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("Sections");
+  // the tab can be linked to, e.g. /admin#qr-codes (the server renders "Loading…" either way)
+  const [tab, setTabState] = useState<Tab>(() => {
+    const hash = typeof window === "undefined" ? "" : window.location.hash.slice(1);
+    return TABS.find((t) => tabSlug(t) === hash) ?? "Sections";
+  });
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    window.history.replaceState(null, "", `#${tabSlug(t)}`);
+  };
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/setup", { cache: "no-store" });

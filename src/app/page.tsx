@@ -4,7 +4,7 @@ import { TwelveDial } from "@/components/twelve-dial";
 const steps = [
   {
     title: "Scan",
-    text: "The invigilator scans the QR code fixed in the room. No login, no app to install.",
+    text: "The invigilator scans the QR code fixed in the room with the phone camera. No app to install.",
   },
   {
     title: "Check",
@@ -13,6 +13,29 @@ const steps = [
   {
     title: "Alert",
     text: "Skipped checks, non-attempting students and rooms with no report reach the principal instantly.",
+  },
+];
+
+const explore = [
+  {
+    href: "/demo",
+    title: "Teacher check flow",
+    text: "What a teacher sees after scanning a room QR: pick a room and go through the cards.",
+  },
+  {
+    href: "/board",
+    title: "Live board",
+    text: "The principal's view of every section, alerts and missing rooms. Try “Load sample day”.",
+  },
+  {
+    href: "/admin",
+    title: "Admin",
+    text: "Edit the school, groups, rooms, sections, rounds, checks and staff.",
+  },
+  {
+    href: "/admin#qr-codes",
+    title: "QR room cards",
+    text: "Designed A4 cards with the 1–12 dial, colour themes, printing and QR renewal.",
   },
 ];
 
@@ -51,20 +74,29 @@ export default function Home() {
         ))}
       </ol>
 
-      <footer className="flex items-center justify-between text-sm text-muted">
-        <span>In development · twelve.keystone-labs.site</span>
-        <span className="flex gap-4">
-          <Link href="/demo" className="font-medium text-foreground underline underline-offset-4">
-            Teacher demo
-          </Link>
-          <Link href="/board" className="font-medium text-foreground underline underline-offset-4">
-            Live board
-          </Link>
-          <Link href="/admin" className="font-medium text-foreground underline underline-offset-4">
-            Admin
-          </Link>
-        </span>
-      </footer>
+      <section className="flex flex-col gap-4" aria-labelledby="explore">
+        <h2 id="explore" className="text-sm font-medium tracking-widest text-muted uppercase">
+          Explore
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {explore.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="group flex h-full flex-col gap-1 rounded-2xl border border-line bg-surface p-5 transition hover:border-accent"
+              >
+                <span className="flex items-center justify-between font-semibold">
+                  {item.title}
+                  <span className="text-muted transition group-hover:translate-x-1 group-hover:text-accent">→</span>
+                </span>
+                <span className="text-sm text-muted">{item.text}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <footer className="text-sm text-muted">In development · twelve.keystone-labs.site</footer>
     </main>
   );
 }
