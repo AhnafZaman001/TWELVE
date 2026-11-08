@@ -61,8 +61,19 @@ export interface Check {
 export interface Staff {
   id: string;
   name: string;
+  email: string | null; // the email they sign in with
   role: StaffRole;
   active: boolean;
+}
+
+export type AdminRole = "owner" | "admin" | "coordinator";
+
+// Principal and coordinators: board for everyone, admin screen for owner/admin
+export interface Admin {
+  id: string;
+  name: string;
+  email: string;
+  role: AdminRole;
 }
 
 export interface Setup {
@@ -73,6 +84,7 @@ export interface Setup {
   rounds: Round[];
   checks: Check[];
   staff: Staff[];
+  admins: Admin[];
 }
 
 // Editable lists, keyed by name, for the generic admin API
@@ -83,6 +95,7 @@ export interface Entities {
   rounds: Round;
   checks: Check;
   staff: Staff;
+  admins: Admin;
 }
 export type EntityKind = keyof Entities;
-export const ENTITY_KINDS: EntityKind[] = ["groups", "rooms", "sections", "rounds", "checks", "staff"];
+export const ENTITY_KINDS: EntityKind[] = ["groups", "rooms", "sections", "rounds", "checks", "staff", "admins"];

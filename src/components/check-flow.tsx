@@ -49,12 +49,14 @@ export function CheckFlow(props: {
   nextRound: Round | null;
   endTime: string;
   checks: Check[];
+  me: Staff | null; // signed-in staff member; null in sample mode, where they pick their name
   staff: Staff[];
 }) {
-  const { room, section, round, nextRound, staff } = props;
-  const [step, setStep] = useState<Step>({ kind: "who" });
-  const [role, setRole] = useState<Role>("invigilator");
-  const [staffId, setStaffId] = useState<string | null>(null);
+  const { room, section, round, nextRound, me } = props;
+  const staff = me ? [me] : props.staff;
+  const [step, setStep] = useState<Step>(me ? { kind: "arrive" } : { kind: "who" });
+  const [role, setRole] = useState<Role>(me?.role === "floor_incharge" ? "floor_incharge" : "invigilator");
+  const [staffId, setStaffId] = useState<string | null>(me?.id ?? null);
   const [arrivedAt, setArrivedAt] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [attendance, setAttendance] = useState<Attendance | undefined>();

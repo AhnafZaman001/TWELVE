@@ -1,6 +1,6 @@
+import { requireAccess } from "@/lib/auth";
 import { z } from "zod";
 import { getBackend } from "@/lib/data";
-import { blockInProduction } from "@/lib/guard";
 import { roomsToRenew } from "@/lib/qr";
 
 const body = z.discriminatedUnion("scope", [
@@ -11,7 +11,7 @@ const body = z.discriminatedUnion("scope", [
 
 // POST { scope: "rooms", roomIds } | { scope: "group", groupId } | { scope: "all" }
 export async function POST(request: Request) {
-  const blocked = blockInProduction();
+  const blocked = await requireAccess("admin");
   if (blocked) return blocked;
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ ok: false, error: "Choose what to renew" }, { status: 400 });

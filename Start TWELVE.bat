@@ -25,11 +25,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem Admin, board and demo are blocked on a real deployment until login exists;
-rem this local preview opens them.
-set ALLOW_OPEN_ADMIN=1
-
 start "" http://localhost:3000
-echo TWELVE is running at http://localhost:3000
+echo TWELVE is running at http://localhost:3000 - sign in with an email listed in Admin
 call npx next start -p 3000
 pause

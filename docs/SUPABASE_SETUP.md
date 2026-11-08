@@ -42,6 +42,19 @@ report is saved in Supabase.
 - QR links change: each room now has a random `qr_token` (see the `rooms` table),
   so the `/demo` page lists the new links.
 
+## 5. Sign-in (Google and email codes)
+
+1. Run `supabase/migrations/0003_logins.sql` in the SQL Editor (adds staff emails and the
+   Admins list, with zamankips@gmail.com and ahnaf7624@gmail.com as owners).
+2. **Google:** in Google Cloud Console create an OAuth client (type *Web application*) with
+   the redirect URI shown in Supabase → Authentication → Sign In / Providers → Google.
+   Paste its Client ID and Client Secret into that Supabase page and enable Google.
+3. **Supabase → Authentication → URL Configuration:** Site URL `http://localhost:3000`
+   (later `https://twelve.keystone-labs.site`); add both to Redirect URLs with `/**`.
+4. **Email codes:** in Authentication → Emails, make the *Magic link* template show
+   `{{ .Token }}` (the 6-digit code). Supabase's built-in email only reaches your own
+   team's addresses; for teachers, connect Resend under Authentication → SMTP.
+
 ## After setup
 
 Everything is edited in the app at **/admin** (School, Groups, Rooms, Sections,

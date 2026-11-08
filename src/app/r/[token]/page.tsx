@@ -1,8 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
+import { NoAccess } from "@/components/access-gate";
 import { CheckFlow } from "@/components/check-flow";
+import { authEnabled, getViewer } from "@/lib/auth";
 import { getBackend } from "@/lib/data";
 import { currentRound, roundsByTime, sectionInRoom } from "@/lib/setup";
+import type { Staff } from "@/lib/types";
 
 export default function RoomPage(props: PageProps<"/r/[token]">) {
   return (
@@ -20,6 +23,17 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
   const room = await db.getRoomByToken(token);
   if (!room) notFound();
   const setup = await db.getSetup();
+
+  // With sign-in on, the teacher is whoever signed in; without it (sample mode) they pick their name.
+  let me: Staff | null = null;
+  if (authEnabled) {
+    const viewer = await getViewer(setup);
+    if (!viewer) redirect(`/login?next=${encodeURIComponent(`/r/${token}`)}`);
+    if (!viewer.staff) {
+      return <NoAccess email={viewer.email}>Your email is not on the staff list. Ask the admin to add it.</NoAccess>;
+    }
+    me = viewer.staff;
+  }
 
   // ?round=<round id> overrides the clock (for demos and testing)
   const { round: roundParam } = await props.searchParams;
@@ -42,7 +56,8 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
       nextRound={next}
       endTime={setup.school.endTime}
       checks={setup.checks.filter((c) => c.active && c.roundId === round.id).sort((a, b) => a.sort - b.sort)}
-      staff={setup.staff.filter((s) => s.active)}
+      me={me}
+      staff={me ? [] : setup.staff.filter((s) => s.active).map((s) => ({ ...s, email: null }))}
     />
   );
 }

@@ -5,8 +5,9 @@ import type { Setup } from "@/lib/types";
 import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { SchoolForm } from "./school-form";
+import { StaffImport } from "./staff-import";
 
-const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "QR codes"] as const;
+const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "Admins", "QR codes"] as const;
 type Tab = (typeof TABS)[number];
 const tabSlug = (t: Tab) => t.toLowerCase().replaceAll(" ", "-");
 
@@ -156,25 +157,53 @@ export function AdminApp() {
       />
     ),
     Staff: (
+      <div className="flex flex-col gap-4">
+        <EntityTable
+          kind="staff"
+          title="Staff"
+          hint="Teachers and floor incharges who report from the room QR. They sign in with this email (Google or a code). Deactivate to block someone without deleting."
+          rows={setup.staff}
+          columns={[
+            { key: "name", label: "Name", type: "text", wide: true },
+            { key: "email", label: "Sign-in email", type: "text", wide: true },
+            {
+              key: "role",
+              label: "Role",
+              type: "select",
+              options: [
+                { value: "teacher", label: "Teacher" },
+                { value: "floor_incharge", label: "Floor incharge" },
+              ],
+            },
+            { key: "active", label: "Active", ...yesNo },
+          ]}
+          blank={() => ({ name: "", email: null, role: "teacher", active: true })}
+          onChanged={load}
+        />
+        <StaffImport onDone={load} />
+      </div>
+    ),
+    Admins: (
       <EntityTable
-        kind="staff"
-        title="Staff"
-        hint="Teachers and floor incharges who can report. Deactivate to hide someone without deleting."
-        rows={setup.staff}
+        kind="admins"
+        title="Admins"
+        hint="Who can sign in to the board and this screen. Owner and Admin can change everything; Coordinator sees the board only."
+        rows={setup.admins}
         columns={[
           { key: "name", label: "Name", type: "text", wide: true },
+          { key: "email", label: "Sign-in email", type: "text", wide: true },
           {
             key: "role",
             label: "Role",
             type: "select",
             options: [
-              { value: "teacher", label: "Teacher" },
-              { value: "floor_incharge", label: "Floor incharge" },
+              { value: "owner", label: "Owner" },
+              { value: "admin", label: "Admin" },
+              { value: "coordinator", label: "Coordinator" },
             ],
           },
-          { key: "active", label: "Active", ...yesNo },
         ]}
-        blank={() => ({ name: "", role: "teacher", active: true })}
+        blank={() => ({ name: "", email: "", role: "admin" })}
         onChanged={load}
       />
     ),

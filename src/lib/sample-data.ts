@@ -67,12 +67,14 @@ export function sampleSetup(): Setup {
     ...Array.from({ length: 30 }, (_, i): Staff => ({
       id: `t${i + 1}`,
       name: `Teacher ${String(i + 1).padStart(2, "0")}`,
+      email: null,
       role: "teacher",
       active: true,
     })),
     ...["A", "B", "C"].map((x, i): Staff => ({
       id: `f${i + 1}`,
       name: `Floor Incharge ${x}`,
+      email: null,
       role: "floor_incharge",
       active: true,
     })),
@@ -92,5 +94,6 @@ export function sampleSetup(): Setup {
     rounds,
     checks,
     staff,
+    admins: [],
   };
 }

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AccessGate } from "@/components/access-gate";
 import { getBackend } from "@/lib/data";
 import { roundsByTime } from "@/lib/setup";
 
 // Demo index: open any room's check flow without scanning a QR code.
+// Admins only: the links are the rooms' secret QR links.
 export default function DemoPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-8">
@@ -14,7 +16,9 @@ export default function DemoPage() {
         </p>
       </div>
       <Suspense fallback={<p className="text-muted">Loading rooms…</p>}>
-        <RoomLinks />
+        <AccessGate level="admin" next="/demo">
+          <RoomLinks />
+        </AccessGate>
       </Suspense>
     </main>
   );

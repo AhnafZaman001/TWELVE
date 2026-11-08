@@ -1,4 +1,4 @@
-import { blockInProduction } from "@/lib/guard";
+import { requireAccess } from "@/lib/auth";
 import { getBackend } from "@/lib/data";
 import { sampleDay } from "@/lib/demo-seed";
 import { localParts } from "@/lib/time";
@@ -12,7 +12,7 @@ async function today() {
 }
 
 export async function POST() {
-  const blocked = blockInProduction();
+  const blocked = await requireAccess("admin");
   if (blocked) return blocked;
   const { db, setup, dateKey } = await today();
   await db.clearReports(dateKey);
@@ -22,7 +22,7 @@ export async function POST() {
 }
 
 export async function DELETE() {
-  const blocked = blockInProduction();
+  const blocked = await requireAccess("admin");
   if (blocked) return blocked;
   const { db, dateKey } = await today();
   await db.clearReports(dateKey);

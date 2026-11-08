@@ -3,8 +3,7 @@
 import "server-only";
 import { memoryBackend } from "./backend/memory";
 import type { Backend } from "./backend/types";
-
-const hasSupabase = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+import { hasSupabase } from "./supabase/server";
 
 export async function getBackend(): Promise<Backend> {
   if (!hasSupabase) return memoryBackend;

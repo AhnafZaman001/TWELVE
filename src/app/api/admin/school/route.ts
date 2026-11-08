@@ -1,9 +1,9 @@
+import { requireAccess } from "@/lib/auth";
 import { getBackend } from "@/lib/data";
 import { schoolSchema } from "@/lib/entities";
-import { blockInProduction } from "@/lib/guard";
 
 export async function PUT(request: Request) {
-  const blocked = blockInProduction();
+  const blocked = await requireAccess("admin");
   if (blocked) return blocked;
   const parsed = schoolSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

@@ -1,11 +1,11 @@
+import { requireAccess } from "@/lib/auth";
 import { buildBoard } from "@/lib/board";
 import { getBackend } from "@/lib/data";
-import { blockInProduction } from "@/lib/guard";
 import { localParts } from "@/lib/time";
 
 // GET /api/board?at=08:30  (at = optional demo clock, HH:MM)
 export async function GET(request: Request) {
-  const blocked = blockInProduction();
+  const blocked = await requireAccess("board");
   if (blocked) return blocked;
   const at = new URL(request.url).searchParams.get("at");
   const db = await getBackend();

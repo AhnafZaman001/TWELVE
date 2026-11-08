@@ -56,7 +56,12 @@ const COLUMNS: { [K in EntityKind]: { table: string; order: string; map: Partial
       sort: "sort",
     },
   },
-  staff: { table: "staff", order: "full_name", map: { id: "id", name: "full_name", role: "role", active: "active" } },
+  staff: {
+    table: "staff",
+    order: "full_name",
+    map: { id: "id", name: "full_name", email: "email", role: "role", active: "active" },
+  },
+  admins: { table: "admins", order: "email", map: { id: "id", name: "name", email: "email", role: "role" } },
 };
 
 function fromDb<K extends EntityKind>(kind: K, row: Row): Entities[K] {
@@ -119,15 +124,16 @@ export const supabaseBackend: Backend = {
 
   async getSetup(): Promise<Setup> {
     const s = await school();
-    const [groups, rooms, sections, rounds, checks, staff] = await Promise.all([
+    const [groups, rooms, sections, rounds, checks, staff, admins] = await Promise.all([
       listKind("groups", s.id),
       listKind("rooms", s.id),
       listKind("sections", s.id),
       listKind("rounds", s.id),
       listKind("checks", s.id),
       listKind("staff", s.id),
+      listKind("admins", s.id),
     ]);
-    return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff };
+    return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff, admins };
   },
 
   async getRoomByToken(token) {

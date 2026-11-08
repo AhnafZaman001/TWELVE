@@ -6,6 +6,10 @@ const name = z.string().trim().min(1, "Required").max(120);
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM, e.g. 07:50");
 const id = z.string().min(1);
 const sort = z.number().int().min(0).max(100000);
+// stored lower-case so sign-in matching ignores capitals; "" counts as no email
+const cleanEmail = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() || null : v);
+const email = z.preprocess(cleanEmail, z.email("Not a valid email").max(200));
+const optionalEmail = z.preprocess(cleanEmail, z.email("Not a valid email").max(200).nullable());
 
 export const entitySchemas = {
   groups: z.object({ id: id.optional(), name, sort }),
@@ -38,8 +42,15 @@ export const entitySchemas = {
   staff: z.object({
     id: id.optional(),
     name,
+    email: optionalEmail,
     role: z.enum(["teacher", "floor_incharge"]),
     active: z.boolean(),
+  }),
+  admins: z.object({
+    id: id.optional(),
+    name: z.string().trim().max(120),
+    email,
+    role: z.enum(["owner", "admin", "coordinator"]),
   }),
 } satisfies Record<EntityKind, z.ZodType>;
 

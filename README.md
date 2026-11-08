@@ -23,10 +23,13 @@ Open http://localhost:3000.
 
 - `/r/<qr-token>` · what a teacher sees after scanning a room QR
 - `/board` · principal's live board
-- `/admin` · edit school, groups, rooms, sections, rounds, checks, staff; print QR codes
+- `/login` · sign in
+- `/admin` · edit school, groups, rooms, sections, rounds, checks, staff, admins; print QR codes
 - `/demo` · links to every room for testing
 
-Admin, board and demo APIs only work locally until admin login is added.
+Sign-in: only emails listed in Admin → Staff (teachers) or Admin → Admins (principal,
+coordinators) can sign in, with Google or an emailed code. Without Supabase keys the app
+runs on sample data with no sign-in, for local demos.
 
 ## Docs
 
