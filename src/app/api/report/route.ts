@@ -8,6 +8,10 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ ok: false, error: "Invalid report" }, { status: 400 });
   }
+  // A deployed site without Supabase keys has no sign-in: accept nothing.
+  if (!authEnabled && process.env.NODE_ENV === "production") {
+    return Response.json({ ok: false, error: "Sign-in is not set up" }, { status: 403 });
+  }
   const db = await getBackend();
   const setup = await db.getSetup();
   let report = parsed.data;
