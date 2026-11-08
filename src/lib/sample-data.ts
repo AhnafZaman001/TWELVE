@@ -92,4 +92,5 @@ export const schedule: Schedule = {
   startTime: "07:50",
   round2Time: "08:15",
   endTime: "08:40",
+  bufferMinutes: 20,
 };

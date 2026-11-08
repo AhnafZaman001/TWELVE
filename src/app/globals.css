@@ -9,6 +9,7 @@
   --accent: #047857;
   --accent-ink: #ffffff;
   --warn: #b45309;
+  --danger: #b91c1c;
 }
 
 @theme inline {
@@ -20,6 +21,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-warn: var(--warn);
+  --color-danger: var(--danger);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -34,6 +36,7 @@
     --accent: #34d399;
     --accent-ink: #052e1f;
     --warn: #fbbf24;
+    --danger: #f87171;
   }
 }
 

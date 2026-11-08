@@ -1,7 +1,8 @@
 import { getChecks, getRoomByToken } from "@/lib/data";
 import { findProblems, reportSchema } from "@/lib/report";
+import { addReport } from "@/lib/store";
 
-// Until Supabase is connected, reports are only logged on the server.
+// Until Supabase is connected, reports are kept in server memory.
 export async function POST(request: Request) {
   const parsed = reportSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -14,6 +15,6 @@ export async function POST(request: Request) {
   }
 
   const problems = findProblems(report, getChecks());
-  console.log(`[report] ${room.code} round ${report.round} by ${report.staffId}`, problems);
+  addReport(report, problems);
   return Response.json({ ok: true, problems });
 }

@@ -28,4 +28,5 @@ export interface Schedule {
   startTime: string; // "07:50"
   round2Time: string; // "08:15"
   endTime: string; // "08:40"
+  bufferMinutes: number; // a round is "missing" this long after it starts
 }

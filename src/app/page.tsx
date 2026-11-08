@@ -41,9 +41,14 @@ export default function Home() {
 
       <footer className="flex items-center justify-between text-sm text-muted">
         <span>In development · twelve.keystone-labs.site</span>
-        <Link href="/demo" className="font-medium text-foreground underline underline-offset-4">
-          Try the demo
-        </Link>
+        <span className="flex gap-4">
+          <Link href="/demo" className="font-medium text-foreground underline underline-offset-4">
+            Teacher demo
+          </Link>
+          <Link href="/board" className="font-medium text-foreground underline underline-offset-4">
+            Live board
+          </Link>
+        </span>
       </footer>
     </main>
   );
