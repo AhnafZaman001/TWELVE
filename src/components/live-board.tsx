@@ -23,7 +23,7 @@ function roomTone(room: BoardRoom) {
 }
 
 export function LiveBoard() {
-  const [board, setBoard] = useState<Board | null>(null);
+  const [board, setBoard] = useState<(Board & { backend?: string }) | null>(null);
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
   const [year, setYear] = useState<0 | 1 | 2>(0);
@@ -36,7 +36,7 @@ export function LiveBoard() {
       try {
         const res = await fetch(`/api/board${clock ? `?at=${clock}` : ""}`, { cache: "no-store" });
         if (!res.ok) throw new Error();
-        const data: Board = await res.json();
+        const data: Board & { backend?: string } = await res.json();
         if (alive) {
           setBoard(data);
           setFailed(false);
@@ -87,6 +87,9 @@ export function LiveBoard() {
             {board.dateKey} · {board.clock}
             {clock && " (demo time)"} · test {board.schedule.startTime}–{board.schedule.endTime}
             {failed && " · connection lost, retrying"}
+          </p>
+          <p className={`text-xs ${board.backend === "supabase" ? "text-accent" : "text-warn"}`}>
+            {board.backend === "supabase" ? "Saved to Supabase" : "Sample data · not saved"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
