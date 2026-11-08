@@ -1,31 +1,69 @@
-// In-memory backend: sample data, reports kept on globalThis so dev
-// hot-reloads keep them. A server restart clears everything.
+// In-memory backend: starts from sample data and supports every edit, kept on
+// globalThis so dev hot-reloads keep changes. A server restart resets it.
+import { newToken } from "../entities";
 import type { StoredReport } from "../report";
-import { checks, rooms, schedule, staff } from "../sample-data";
+import { sampleSetup } from "../sample-data";
 import { localParts } from "../time";
+import type { Entities, EntityKind, Setup } from "../types";
 import type { Backend } from "./types";
 
-const g = globalThis as unknown as { __twelveReports?: StoredReport[] };
-const reports = (g.__twelveReports ??= []);
-const dayOf = (r: StoredReport) => localParts(new Date(r.receivedAt), schedule.timezone).dateKey;
+const g = globalThis as unknown as { __twelve?: { setup: Setup; reports: StoredReport[] } };
+const state = (g.__twelve ??= { setup: sampleSetup(), reports: [] });
+const dayOf = (r: StoredReport) => localParts(new Date(r.receivedAt), state.setup.school.timezone).dateKey;
+const list = <K extends EntityKind>(kind: K) => state.setup[kind] as Entities[K][];
 
 export const memoryBackend: Backend = {
   name: "memory",
-  getSchedule: async () => schedule,
-  getRooms: async () => rooms,
-  getRoomByToken: async (token) => rooms.find((r) => r.token === token) ?? null,
-  getChecks: async () => checks,
-  getStaff: async () => staff,
+  getSetup: async () => structuredClone(state.setup),
+  getRoomByToken: async (token) => state.setup.rooms.find((r) => r.token === token && r.active) ?? null,
 
-  async saveReport(report, problems, receivedAt = new Date()) {
-    reports.push({ ...report, id: crypto.randomUUID(), receivedAt: receivedAt.toISOString(), problems });
+  async saveSchool(school) {
+    state.setup.school = { ...school };
+    return school;
   },
 
-  listReports: async (dateKey) => reports.filter((r) => dayOf(r) === dateKey),
+  async upsert(kind, row) {
+    const rows = list(kind);
+    if (row.id) {
+      const i = rows.findIndex((r) => r.id === row.id);
+      if (i < 0) throw new Error("Not found");
+      rows[i] = { ...rows[i], ...row } as Entities[typeof kind];
+      return rows[i];
+    }
+    const created = {
+      ...row,
+      id: crypto.randomUUID(),
+      ...(kind === "rooms" ? { token: newToken() } : {}),
+    } as unknown as Entities[typeof kind];
+    rows.push(created);
+    return created;
+  },
+
+  async remove(kind, id) {
+    const s = state.setup;
+    const rows = s[kind] as { id: string }[];
+    const i = rows.findIndex((r) => r.id === id);
+    if (i >= 0) rows.splice(i, 1);
+    // same effects as the database's foreign keys
+    if (kind === "groups") s.sections.forEach((x) => x.groupId === id && (x.groupId = null));
+    if (kind === "rooms") s.sections.forEach((x) => x.roomId === id && (x.roomId = null));
+    if (kind === "rounds") s.checks = s.checks.filter((c) => c.roundId !== id);
+  },
+
+  async newRoomToken(roomId) {
+    const room = state.setup.rooms.find((r) => r.id === roomId);
+    if (!room) throw new Error("Not found");
+    room.token = newToken();
+    return room;
+  },
+
+  async saveReport({ receivedAt = new Date(), ...report }) {
+    state.reports.push({ ...report, id: crypto.randomUUID(), receivedAt: receivedAt.toISOString() });
+  },
+
+  listReports: async (dateKey) => state.reports.filter((r) => dayOf(r) === dateKey),
 
   async clearReports(dateKey) {
-    const keep = reports.filter((r) => dayOf(r) !== dateKey);
-    reports.length = 0;
-    reports.push(...keep);
+    state.reports = state.reports.filter((r) => dayOf(r) !== dateKey);
   },
 };

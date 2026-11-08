@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getBackend } from "@/lib/data";
+import { roundsByTime } from "@/lib/setup";
 
 // Demo index: open any room's check flow without scanning a QR code.
 export default function DemoPage() {
@@ -21,21 +22,29 @@ export default function DemoPage() {
 
 async function RoomLinks() {
   const db = await getBackend();
-  const rooms = (await db.getRooms()).filter((r) => r.isTestRoom);
-  return ([1, 2] as const).map((round) => (
-    <section key={round} className="flex flex-col gap-3">
+  const setup = await db.getSetup();
+  const placed = setup.sections
+    .filter((s) => s.active && s.roomId)
+    .sort((a, b) => a.sort - b.sort)
+    .flatMap((s) => {
+      const room = setup.rooms.find((r) => r.id === s.roomId && r.active);
+      return room ? [{ section: s, room }] : [];
+    });
+
+  return roundsByTime(setup.rounds).map((round) => (
+    <section key={round.id} className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">
-        Round {round} {round === 1 ? "· start of test" : "· mid-test"}
+        {round.name} <span className="font-normal text-muted">· from {round.startTime}</span>
       </h2>
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {rooms.map((r) => (
-          <li key={r.token}>
+        {placed.map(({ section, room }) => (
+          <li key={section.id}>
             <Link
-              href={`/r/${r.token}?round=${round}`}
+              href={`/r/${room.token}?round=${round.id}`}
               className="block rounded-xl border border-line px-2 py-3 text-center text-sm hover:border-foreground"
             >
-              {r.code}
-              <span className="block text-xs text-muted">{r.section}</span>
+              {room.code}
+              <span className="block text-xs text-muted">{section.name}</span>
             </Link>
           </li>
         ))}

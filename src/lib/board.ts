@@ -1,14 +1,17 @@
 // Builds the principal's live board from today's reports. Pure: no I/O.
+// Works for any number of rounds, groups and sections.
+import { roundsByTime } from "./setup";
 import type { StoredReport } from "./report";
 import { addMinutes, localParts } from "./time";
-import type { Check, Room, Round, Schedule, Staff } from "./types";
+import type { Group, Setup } from "./types";
 
 export type RoundStatus = "upcoming" | "waiting" | "ok" | "problem" | "missing";
 
 export interface BoardReport {
   id: string;
   time: string; // HH:MM local
-  round: Round;
+  roundId: string;
+  roundName: string;
   role: StoredReport["role"];
   staffName: string;
   problems: string[];
@@ -17,13 +20,20 @@ export interface BoardReport {
   nonAttempting?: StoredReport["nonAttempting"];
 }
 
-export interface BoardRoom {
-  token: string;
-  code: string;
-  section: string;
-  year: 1 | 2;
-  rounds: Record<Round, RoundStatus>;
+export interface BoardSection {
+  id: string;
+  name: string;
+  roomCode: string;
+  groupId: string | null;
+  status: Record<string, RoundStatus>; // by round id
   reports: BoardReport[];
+}
+
+export interface BoardRound {
+  id: string;
+  name: string;
+  startTime: string;
+  deadline: string;
 }
 
 export interface BoardAlert {
@@ -37,62 +47,70 @@ export interface BoardAlert {
 export interface Board {
   dateKey: string;
   clock: string;
-  activeRound: Round | null;
-  schedule: Schedule;
-  rooms: BoardRoom[];
+  phase: "before" | "during" | "after";
+  activeRoundId: string | null;
+  schoolName: string;
+  endTime: string;
+  rounds: BoardRound[];
+  groups: Group[];
+  sections: BoardSection[];
   alerts: BoardAlert[];
-  summary: { total: number; round1: number; round2: number; problems: number; missing: number };
+  summary: { total: number; reported: Record<string, number>; problems: number; missing: number };
 }
 
 export function buildBoard(input: {
-  rooms: Room[];
+  setup: Setup;
   reports: StoredReport[];
-  checks: Check[];
-  staff: Staff[];
-  schedule: Schedule;
   now: Date;
   clockOverride?: string; // "HH:MM" for demos
 }): Board {
-  const { schedule } = input;
-  const today = localParts(input.now, schedule.timezone);
+  const { setup } = input;
+  const tz = setup.school.timezone;
+  const today = localParts(input.now, tz);
   const clock = input.clockOverride ?? today.hhmm;
-  const starts: Record<Round, string> = { 1: schedule.startTime, 2: schedule.round2Time };
-  const deadline = (r: Round) => addMinutes(starts[r], schedule.bufferMinutes);
+  const rounds: BoardRound[] = roundsByTime(setup.rounds).map((r) => ({
+    id: r.id,
+    name: r.name,
+    startTime: r.startTime,
+    deadline: addMinutes(r.startTime, setup.school.bufferMinutes),
+  }));
+  const todays = input.reports.filter((r) => localParts(new Date(r.receivedAt), tz).dateKey === today.dateKey);
+  const roomCode = (id: string | null) => setup.rooms.find((r) => r.id === id)?.code ?? "No room";
 
-  const todays = input.reports.filter(
-    (r) => localParts(new Date(r.receivedAt), schedule.timezone).dateKey === today.dateKey,
-  );
-  const staffName = (id: string) => input.staff.find((s) => s.id === id)?.name ?? "Unknown";
-  const question = (id: string) => input.checks.find((c) => c.id === id)?.question ?? id;
-  const time = (r: StoredReport) => localParts(new Date(r.receivedAt), schedule.timezone).hhmm;
-
-  const rooms: BoardRoom[] = input.rooms
-    .filter((room) => room.isTestRoom && room.section)
-    .map((room) => {
-      const mine = todays.filter((r) => r.roomToken === room.token);
-      const status = (round: Round): RoundStatus => {
-        const inRound = mine.filter((r) => r.round === round);
-        if (inRound.some((r) => r.problems.length > 0)) return "problem";
-        if (inRound.some((r) => r.role === "invigilator")) return "ok";
-        if (clock >= deadline(round)) return "missing";
-        if (clock >= starts[round]) return "waiting";
-        return "upcoming";
-      };
+  const sections: BoardSection[] = setup.sections
+    .filter((s) => s.active && s.roomId)
+    .sort((a, b) => a.sort - b.sort)
+    .map((sec) => {
+      const mine = todays.filter((r) => (r.sectionId ? r.sectionId === sec.id : r.roomId === sec.roomId));
+      const status: Record<string, RoundStatus> = {};
+      for (const round of rounds) {
+        const inRound = mine.filter((r) => r.roundId === round.id);
+        status[round.id] = inRound.some((r) => r.problems.length > 0)
+          ? "problem"
+          : inRound.some((r) => r.role === "invigilator")
+            ? "ok"
+            : clock >= round.deadline
+              ? "missing"
+              : clock >= round.startTime
+                ? "waiting"
+                : "upcoming";
+      }
       return {
-        token: room.token,
-        code: room.code,
-        section: room.section!,
-        year: room.section!.startsWith("F") ? 1 : 2,
-        rounds: { 1: status(1), 2: status(2) },
+        id: sec.id,
+        name: sec.name,
+        roomCode: roomCode(sec.roomId),
+        groupId: sec.groupId,
+        status,
         reports: mine
           .map((r) => ({
             id: r.id,
-            time: time(r),
-            round: r.round,
+            time: localParts(new Date(r.receivedAt), tz).hhmm,
+            roundId: r.roundId,
+            roundName: r.roundName,
             role: r.role,
-            staffName: staffName(r.staffId),
+            staffName: r.staffName,
             problems: r.problems,
-            answers: r.answers.map((a) => ({ question: question(a.checkId), result: a.result })),
+            answers: r.answers.map((a) => ({ question: r.questions[a.checkId] ?? a.checkId, result: a.result })),
             attendance: r.attendance,
             nonAttempting: r.nonAttempting,
           }))
@@ -100,51 +118,52 @@ export function buildBoard(input: {
       };
     });
 
-  const label = (r: BoardRoom) => `${r.code} · ${r.section}`;
+  const label = (s: BoardSection) => `${s.roomCode} · ${s.name}`;
   const alerts: BoardAlert[] = [];
-  for (const room of rooms) {
-    for (const rep of room.reports) {
+  for (const sec of sections) {
+    for (const rep of sec.reports) {
       if (rep.problems.length === 0) continue;
       alerts.push({
         id: rep.id,
         time: rep.time,
         kind: "problem",
-        title: `${label(room)} · Round ${rep.round}`,
+        title: `${label(sec)} · ${rep.roundName}`,
         detail: [`${rep.staffName} (${rep.role === "invigilator" ? "Invigilator" : "Floor incharge"})`, ...rep.problems],
       });
     }
   }
-  for (const round of [1, 2] as const) {
-    const missing = rooms.filter((r) => r.rounds[round] === "missing");
+  for (const round of rounds) {
+    const missing = sections.filter((s) => s.status[round.id] === "missing");
     if (missing.length === 0) continue;
     alerts.push({
-      id: `missing-${round}`,
-      time: deadline(round),
+      id: `missing-${round.id}`,
+      time: round.deadline,
       kind: "missing",
-      title: `No report from ${missing.length} room${missing.length > 1 ? "s" : ""} · Round ${round}`,
+      title: `No report from ${missing.length} section${missing.length > 1 ? "s" : ""} · ${round.name}`,
       detail: [missing.map(label).join(", ")],
     });
   }
   alerts.sort((a, b) => b.time.localeCompare(a.time));
 
-  const reported = (round: Round) =>
-    rooms.filter((r) => r.rounds[round] === "ok" || r.rounds[round] === "problem").length;
-
+  const started = rounds.filter((r) => r.startTime <= clock);
   return {
     dateKey: today.dateKey,
     clock,
-    activeRound: clock >= starts[2] ? 2 : clock >= starts[1] ? 1 : null,
-    schedule,
-    rooms,
+    phase: started.length === 0 ? "before" : clock >= setup.school.endTime ? "after" : "during",
+    activeRoundId: started.at(-1)?.id ?? null,
+    schoolName: setup.school.name,
+    endTime: setup.school.endTime,
+    rounds,
+    groups: [...setup.groups].sort((a, b) => a.sort - b.sort),
+    sections,
     alerts,
     summary: {
-      total: rooms.length,
-      round1: reported(1),
-      round2: reported(2),
+      total: sections.length,
+      reported: Object.fromEntries(
+        rounds.map((r) => [r.id, sections.filter((s) => ["ok", "problem"].includes(s.status[r.id])).length]),
+      ),
       problems: alerts.filter((a) => a.kind === "problem").length,
-      missing: new Set(
-        rooms.filter((r) => r.rounds[1] === "missing" || r.rounds[2] === "missing").map((r) => r.token),
-      ).size,
+      missing: sections.filter((s) => Object.values(s.status).includes("missing")).length,
     },
   };
 }

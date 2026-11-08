@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Board, BoardRoom, RoundStatus } from "@/lib/board";
+import type { Board, BoardSection, RoundStatus } from "@/lib/board";
+import { addMinutes } from "@/lib/time";
 
 const POLL_MS = 5000;
-const DEMO_CLOCKS = ["07:55", "08:12", "08:30", "08:40"];
 
 const STATUS: Record<RoundStatus, { label: string; chip: string }> = {
   upcoming: { label: "Not started", chip: "border-line text-muted" },
@@ -14,20 +14,26 @@ const STATUS: Record<RoundStatus, { label: string; chip: string }> = {
   missing: { label: "No report", chip: "border-danger text-danger" },
 };
 
-function roomTone(room: BoardRoom) {
-  const s = [room.rounds[1], room.rounds[2]];
+function tone(section: BoardSection) {
+  const s = Object.values(section.status);
   if (s.includes("problem") || s.includes("missing")) return "border-danger/60";
   if (s.includes("waiting")) return "border-warn/50";
-  if (s.every((x) => x === "ok")) return "border-accent/50";
+  if (s.length > 0 && s.every((x) => x === "ok")) return "border-accent/50";
   return "border-line";
+}
+
+// Useful moments to preview: just after each round starts and after its deadline
+function demoClocks(board: Board) {
+  const times = board.rounds.flatMap((r) => [addMinutes(r.startTime, 5), addMinutes(r.deadline, 2)]);
+  return [...new Set([...times, board.endTime])].sort();
 }
 
 export function LiveBoard() {
   const [board, setBoard] = useState<(Board & { backend?: string }) | null>(null);
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
-  const [year, setYear] = useState<0 | 1 | 2>(0);
-  const [openToken, setOpenToken] = useState<string | null>(null);
+  const [groupId, setGroupId] = useState<string>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -55,7 +61,9 @@ export function LiveBoard() {
 
   async function demo(method: "POST" | "DELETE") {
     await fetch("/api/demo", { method });
-    if (method === "POST" && !clock) setClock("08:30");
+    if (method === "POST" && !clock && board?.rounds.length) {
+      setClock(addMinutes(board.rounds.at(-1)!.deadline, -5));
+    }
     setReloadKey((k) => k + 1);
   }
 
@@ -67,25 +75,28 @@ export function LiveBoard() {
     );
   }
 
-  const rooms = board.rooms.filter((r) => year === 0 || r.year === year);
-  const open = board.rooms.find((r) => r.token === openToken) ?? null;
-  const { summary } = board;
+  const sections = board.sections.filter((s) => groupId === "all" || s.groupId === groupId);
+  const open = board.sections.find((s) => s.id === openId) ?? null;
+  const active = board.rounds.find((r) => r.id === board.activeRoundId);
+  const roundTag = (i: number) => `R${i + 1}`;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium tracking-widest text-muted uppercase">TWELVE · Live board</p>
+          <p className="text-sm font-medium tracking-widest text-muted uppercase">
+            TWELVE · {board.schoolName}
+          </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {board.clock >= board.schedule.endTime
+            {board.phase === "after"
               ? "Test finished"
-              : board.activeRound
-                ? `Round ${board.activeRound} in progress`
-                : "Before the test"}
+              : board.phase === "before"
+                ? "Before the test"
+                : `${active?.name ?? "Test"} in progress`}
           </h1>
           <p className="text-sm text-muted">
             {board.dateKey} · {board.clock}
-            {clock && " (demo time)"} · test {board.schedule.startTime}–{board.schedule.endTime}
+            {clock && " (preview time)"}
             {failed && " · connection lost, retrying"}
           </p>
           <p className={`text-xs ${board.backend === "supabase" ? "text-accent" : "text-warn"}`}>
@@ -103,7 +114,7 @@ export function LiveBoard() {
             className="min-h-10 rounded-xl border border-line bg-surface px-3"
           >
             <option value="">Now</option>
-            {DEMO_CLOCKS.map((c) => (
+            {demoClocks(board).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -127,51 +138,57 @@ export function LiveBoard() {
       </header>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Round 1 reported" value={`${summary.round1}/${summary.total}`} />
-        <Stat label="Round 2 reported" value={`${summary.round2}/${summary.total}`} />
-        <Stat label="Problems" value={summary.problems} tone={summary.problems ? "danger" : undefined} />
-        <Stat label="Rooms missing" value={summary.missing} tone={summary.missing ? "danger" : undefined} />
+        {board.rounds.map((r) => (
+          <Stat key={r.id} label={`${r.name} reported`} value={`${board.summary.reported[r.id]}/${board.summary.total}`} />
+        ))}
+        <Stat label="Problems" value={board.summary.problems} tone={board.summary.problems ? "danger" : undefined} />
+        <Stat label="Sections missing" value={board.summary.missing} tone={board.summary.missing ? "danger" : undefined} />
       </dl>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <section className="flex flex-col gap-4" aria-label="Rooms">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex gap-1 rounded-xl border border-line p-1 text-sm" role="tablist">
-              {([0, 1, 2] as const).map((y) => (
+        <section className="flex flex-col gap-4" aria-label="Sections">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-1 rounded-xl border border-line p-1 text-sm" role="tablist">
+              {[{ id: "all", name: "All" }, ...board.groups].map((g) => (
                 <button
-                  key={y}
+                  key={g.id}
                   type="button"
                   role="tab"
-                  aria-selected={year === y}
-                  onClick={() => setYear(y)}
-                  className={`min-h-9 rounded-lg px-3 font-medium ${year === y ? "bg-foreground text-background" : "text-muted"}`}
+                  aria-selected={groupId === g.id}
+                  onClick={() => setGroupId(g.id)}
+                  className={`min-h-9 rounded-lg px-3 font-medium ${groupId === g.id ? "bg-foreground text-background" : "text-muted"}`}
                 >
-                  {y === 0 ? "All" : y === 1 ? "1st Year" : "2nd Year"}
+                  {g.name}
                 </button>
               ))}
             </div>
             <Legend />
           </div>
+          {sections.length === 0 && (
+            <p className="rounded-2xl border border-line p-4 text-sm text-muted">
+              No sections placed in rooms yet. Add them in Admin → Sections.
+            </p>
+          )}
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6">
-            {rooms.map((room) => (
-              <li key={room.token}>
+            {sections.map((sec) => (
+              <li key={sec.id}>
                 <button
                   type="button"
-                  onClick={() => setOpenToken(room.token)}
-                  className={`flex w-full flex-col gap-2 rounded-2xl border bg-surface p-3 text-left transition hover:border-foreground ${roomTone(room)}`}
+                  onClick={() => setOpenId(sec.id)}
+                  className={`flex w-full flex-col gap-2 rounded-2xl border bg-surface p-3 text-left transition hover:border-foreground ${tone(sec)}`}
                 >
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold">{room.code}</span>
-                    <span className="text-xs text-muted">{room.section}</span>
+                    <span className="font-semibold">{sec.roomCode}</span>
+                    <span className="text-xs text-muted">{sec.name}</span>
                   </span>
                   <span className="flex gap-1">
-                    {([1, 2] as const).map((r) => (
+                    {board.rounds.map((r, i) => (
                       <span
-                        key={r}
-                        className={`flex-1 rounded-md border px-1.5 py-0.5 text-center text-[11px] font-medium ${STATUS[room.rounds[r]].chip}`}
-                        title={`Round ${r}: ${STATUS[room.rounds[r]].label}`}
+                        key={r.id}
+                        className={`flex-1 rounded-md border px-1.5 py-0.5 text-center text-[11px] font-medium ${STATUS[sec.status[r.id]].chip}`}
+                        title={`${r.name}: ${STATUS[sec.status[r.id]].label}`}
                       >
-                        R{r}
+                        {roundTag(i)}
                       </span>
                     ))}
                   </span>
@@ -207,7 +224,7 @@ export function LiveBoard() {
         </section>
       </div>
 
-      {open && <RoomDetail room={open} onClose={() => setOpenToken(null)} />}
+      {open && <SectionDetail section={open} board={board} onClose={() => setOpenId(null)} />}
     </main>
   );
 }
@@ -235,47 +252,44 @@ function Legend() {
   );
 }
 
-function RoomDetail(props: { room: BoardRoom; onClose: () => void }) {
-  const { room } = props;
+function SectionDetail(props: { section: BoardSection; board: Board; onClose: () => void }) {
+  const { section, board, onClose } = props;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [props]);
+  }, [onClose]);
+  const group = board.groups.find((g) => g.id === section.groupId);
 
   return (
-    <div className="fixed inset-0 z-10 flex justify-end bg-black/40" onClick={props.onClose}>
+    <div className="fixed inset-0 z-10 flex justify-end bg-black/40" onClick={onClose}>
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label={`Room ${room.code}`}
+        aria-label={`Section ${section.name}`}
         onClick={(e) => e.stopPropagation()}
         className="flex h-full w-full max-w-md flex-col gap-5 overflow-y-auto bg-background p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">
-              {room.code} · {room.section}
+              {section.roomCode} · {section.name}
             </h2>
-            <p className="text-sm text-muted">{room.year === 1 ? "1st Year" : "2nd Year"}</p>
+            {group && <p className="text-sm text-muted">{group.name}</p>}
           </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            className="min-h-10 rounded-xl border border-line px-3 text-sm"
-          >
+          <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-line px-3 text-sm">
             Close
           </button>
         </div>
-        <div className="flex gap-2">
-          {([1, 2] as const).map((r) => (
-            <span key={r} className={`rounded-lg border px-2 py-1 text-sm ${STATUS[room.rounds[r]].chip}`}>
-              Round {r}: {STATUS[room.rounds[r]].label}
+        <div className="flex flex-wrap gap-2">
+          {board.rounds.map((r) => (
+            <span key={r.id} className={`rounded-lg border px-2 py-1 text-sm ${STATUS[section.status[r.id]].chip}`}>
+              {r.name}: {STATUS[section.status[r.id]].label}
             </span>
           ))}
         </div>
-        {room.reports.length === 0 && <p className="text-muted">No reports today.</p>}
-        {room.reports.map((rep) => (
+        {section.reports.length === 0 && <p className="text-muted">No reports today.</p>}
+        {section.reports.map((rep) => (
           <article key={rep.id} className="flex flex-col gap-3 rounded-2xl border border-line p-4">
             <header className="flex items-baseline justify-between gap-2">
               <span className="font-semibold">
@@ -286,7 +300,7 @@ function RoomDetail(props: { room: BoardRoom; onClose: () => void }) {
                 </span>
               </span>
               <span className="text-sm text-muted">
-                R{rep.round} · {rep.time}
+                {rep.roundName} · {rep.time}
               </span>
             </header>
             <ul className="flex flex-col gap-1 text-sm">

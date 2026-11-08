@@ -1,3 +1,4 @@
+import { blockInProduction } from "@/lib/guard";
 import { getBackend } from "@/lib/data";
 import { sampleDay } from "@/lib/demo-seed";
 import { localParts } from "@/lib/time";
@@ -6,22 +7,23 @@ import { localParts } from "@/lib/time";
 // DELETE: clear today's reports.
 async function today() {
   const db = await getBackend();
-  const schedule = await db.getSchedule();
-  return { db, schedule, dateKey: localParts(new Date(), schedule.timezone).dateKey };
+  const setup = await db.getSetup();
+  return { db, setup, dateKey: localParts(new Date(), setup.school.timezone).dateKey };
 }
 
 export async function POST() {
-  const { db, schedule, dateKey } = await today();
-  const [rooms, checks, staff] = await Promise.all([db.getRooms(), db.getChecks(), db.getStaff()]);
+  const blocked = blockInProduction();
+  if (blocked) return blocked;
+  const { db, setup, dateKey } = await today();
   await db.clearReports(dateKey);
-  const items = sampleDay({ rooms, checks, staff, schedule });
-  for (const { report, problems, receivedAt } of items) {
-    await db.saveReport(report, problems, receivedAt);
-  }
-  return Response.json({ ok: true, count: items.length, backend: db.name });
+  const reports = sampleDay(setup);
+  for (const report of reports) await db.saveReport(report);
+  return Response.json({ ok: true, count: reports.length, backend: db.name });
 }
 
 export async function DELETE() {
+  const blocked = blockInProduction();
+  if (blocked) return blocked;
   const { db, dateKey } = await today();
   await db.clearReports(dateKey);
   return Response.json({ ok: true });

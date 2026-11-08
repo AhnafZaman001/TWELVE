@@ -19,6 +19,16 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Pages
+
+- `/r/<qr-token>` · what a teacher sees after scanning a room QR
+- `/board` · principal's live board
+- `/admin` · edit school, groups, rooms, sections, rounds, checks, staff; print QR codes
+- `/demo` · links to every room for testing
+
+Admin, board and demo APIs only work locally until admin login is added.
+
 ## Docs
 
 - [Product & technical spec](docs/SPEC.md)
+- [Supabase setup](docs/SUPABASE_SETUP.md)

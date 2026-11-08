@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { CheckFlow } from "@/components/check-flow";
-import { currentRound, getBackend } from "@/lib/data";
+import { getBackend } from "@/lib/data";
+import { currentRound, roundsByTime, sectionInRoom } from "@/lib/setup";
 
 export default function RoomPage(props: PageProps<"/r/[token]">) {
   return (
@@ -18,20 +19,30 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
   const db = await getBackend();
   const room = await db.getRoomByToken(token);
   if (!room) notFound();
+  const setup = await db.getSetup();
 
-  const [schedule, checks, staff] = await Promise.all([db.getSchedule(), db.getChecks(), db.getStaff()]);
-
-  // ?round=1 or ?round=2 overrides the clock (for demos and testing)
+  // ?round=<round id> overrides the clock (for demos and testing)
   const { round: roundParam } = await props.searchParams;
-  const round = roundParam === "1" ? 1 : roundParam === "2" ? 2 : currentRound(schedule);
+  const rounds = roundsByTime(setup.rounds);
+  const round = rounds.find((r) => r.id === roundParam) ?? currentRound(setup);
+  if (!round) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center px-6 text-center text-muted">
+        No test rounds are set up yet.
+      </main>
+    );
+  }
+  const next = rounds[rounds.findIndex((r) => r.id === round.id) + 1] ?? null;
 
   return (
     <CheckFlow
       room={room}
+      section={sectionInRoom(setup, room.id)}
       round={round}
-      checks={checks.filter((c) => c.round === round)}
-      staff={staff}
-      schedule={schedule}
+      nextRound={next}
+      endTime={setup.school.endTime}
+      checks={setup.checks.filter((c) => c.active && c.roundId === round.id).sort((a, b) => a.sort - b.sort)}
+      staff={setup.staff.filter((s) => s.active)}
     />
   );
 }

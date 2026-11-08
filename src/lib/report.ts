@@ -7,7 +7,7 @@ export const reportSchema = z.object({
   roomToken: z.string().min(1),
   staffId: z.string().min(1),
   role: z.enum(["invigilator", "floor_incharge"]),
-  round: z.union([z.literal(1), z.literal(2)]),
+  roundId: z.string().min(1),
   arrivedAt: z.iso.datetime(),
   answers: z.array(
     z.object({
@@ -24,8 +24,20 @@ export const reportSchema = z.object({
 
 export type ReportInput = z.infer<typeof reportSchema>;
 
-export interface StoredReport extends ReportInput {
+// Names are copied into each saved report, so history stays readable even
+// after a room, section, staff member, round or check is renamed or deleted.
+export interface ReportSnapshot {
+  roomCode: string;
+  sectionId: string | null;
+  sectionName: string | null;
+  staffName: string;
+  roundName: string;
+  questions: Record<string, string>; // checkId -> question text at the time
+}
+
+export interface StoredReport extends ReportInput, ReportSnapshot {
   id: string;
+  roomId: string | null;
   receivedAt: string; // ISO
   problems: string[];
 }

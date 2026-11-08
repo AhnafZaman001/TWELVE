@@ -48,6 +48,9 @@ export default function Home() {
           <Link href="/board" className="font-medium text-foreground underline underline-offset-4">
             Live board
           </Link>
+          <Link href="/admin" className="font-medium text-foreground underline underline-offset-4">
+            Admin
+          </Link>
         </span>
       </footer>
     </main>

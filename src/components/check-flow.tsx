@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReportInput } from "@/lib/report";
-import type { Check, Role, Room, Round, Schedule, Staff } from "@/lib/types";
+import type { Check, Role, Room, Round, Section, Staff } from "@/lib/types";
 
 type Answer = ReportInput["answers"][number];
 type Attendance = NonNullable<ReportInput["attendance"]>;
@@ -38,18 +38,20 @@ function useRememberedStaffId() {
   );
 }
 
-function roomLabel(room: Room) {
-  return room.section ? `${room.code} · ${room.section}` : room.code;
+function roomLabel(room: Room, section: Section | null) {
+  return section ? `${room.code} · ${section.name}` : room.code;
 }
 
 export function CheckFlow(props: {
   room: Room;
+  section: Section | null;
   round: Round;
+  nextRound: Round | null;
+  endTime: string;
   checks: Check[];
   staff: Staff[];
-  schedule: Schedule;
 }) {
-  const { room, round, staff, schedule } = props;
+  const { room, section, round, nextRound, staff } = props;
   const [step, setStep] = useState<Step>({ kind: "who" });
   const [role, setRole] = useState<Role>("invigilator");
   const [staffId, setStaffId] = useState<string | null>(null);
@@ -61,7 +63,11 @@ export function CheckFlow(props: {
   const checks = props.checks.filter((c) => c.audience === "both" || c.audience === role);
   const person = staff.find((s) => s.id === staffId);
   const countsStep: Step | null =
-    role === "floor_incharge" ? null : round === 1 ? { kind: "attendance" } : { kind: "non-attempting" };
+    role === "floor_incharge" || round.countsKind === "none"
+      ? null
+      : round.countsKind === "attendance"
+        ? { kind: "attendance" }
+        : { kind: "non-attempting" };
 
   // total steps for the progress bar: arrive + checks + counts
   const totalSteps = 1 + checks.length + (countsStep ? 1 : 0);
@@ -90,7 +96,7 @@ export function CheckFlow(props: {
       roomToken: room.token,
       staffId: staffId!,
       role,
-      round,
+      roundId: round.id,
       arrivedAt: arrivedAt!,
       answers: finalAnswers,
       attendance: att,
@@ -115,7 +121,7 @@ export function CheckFlow(props: {
       <header className="flex items-center justify-between text-sm">
         <span className="font-semibold tracking-wide">TWELVE</span>
         <span className="text-muted">
-          Room {roomLabel(room)} · Round {round}
+          Room {roomLabel(room, section)} · {round.name}
         </span>
       </header>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line" aria-hidden>
@@ -128,9 +134,9 @@ export function CheckFlow(props: {
       <section className="flex flex-1 flex-col pt-8">
         {step.kind === "who" && (
           <WhoCard
-            room={room}
+            label={roomLabel(room, section)}
             round={round}
-            schedule={schedule}
+            endTime={props.endTime}
             staff={staff}
             role={role}
             onRole={setRole}
@@ -206,8 +212,8 @@ export function CheckFlow(props: {
               </ul>
             )}
             <p className="text-sm text-muted">
-              {round === 1
-                ? `Scan this QR again after ${schedule.round2Time} for round 2.`
+              {nextRound
+                ? `Scan this QR again after ${nextRound.startTime} for “${nextRound.name}”.`
                 : "You are done for this test."}
             </p>
           </Card>
@@ -260,9 +266,9 @@ function BigButton(props: {
 }
 
 function WhoCard(props: {
-  room: Room;
+  label: string;
   round: Round;
-  schedule: Schedule;
+  endTime: string;
   staff: Staff[];
   role: Role;
   onRole: (r: Role) => void;
@@ -280,12 +286,10 @@ function WhoCard(props: {
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-muted">
-          Test period {props.schedule.startTime}–{props.schedule.endTime}
+          From {props.round.startTime} · test ends {props.endTime}
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Room {roomLabel(props.room)}</h1>
-        <p className="text-muted">
-          {props.round === 1 ? "Round 1 · Start of test" : "Round 2 · Mid-test checks"}
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Room {props.label}</h1>
+        <p className="text-muted">{props.round.name}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-line p-1" role="radiogroup">

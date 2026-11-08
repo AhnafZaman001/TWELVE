@@ -12,10 +12,14 @@ report is saved in Supabase.
 
 ## 2. Create the tables
 
+> Already ran an older version of these files? First run `supabase/reset.sql`
+> (it deletes the TWELVE tables), then continue below.
+
 1. In the project, open **SQL Editor** → **New query**.
 2. Paste all of `supabase/migrations/0001_init.sql` → **Run**. Expect "Success. No rows returned".
 3. New query again, paste all of `supabase/seed.sql` → **Run**.
-4. Open **Table Editor**: you should see `rooms` (51 rows), `checks` (7), `staff` (33), `schools` (1).
+4. Open **Table Editor**: you should see `rooms` (51 rows), `sections` (32), `groups` (2),
+   `rounds` (2), `checks` (7), `staff` (33), `schools` (1).
 
 ## 3. Add the keys to the app (on your laptop only)
 
@@ -37,7 +41,8 @@ report is saved in Supabase.
 - QR links change: each room now has a random `qr_token` (see the `rooms` table),
   so the `/demo` page lists the new links.
 
-## Later
+## After setup
 
-- Replace placeholder staff with real names in **Table Editor → staff**.
-- Rename the school in **Table Editor → schools**.
+Everything is edited in the app at **/admin** (School, Groups, Rooms, Sections,
+Rounds, Checks, Staff, QR codes). Rows created by the SQL above are ordinary rows:
+they can be renamed, moved, deactivated or deleted like anything added in the app.
