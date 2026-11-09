@@ -4,7 +4,7 @@ import { useState } from "react";
 import { qrCodeLabel, type RenewScope } from "@/lib/qr";
 import { roundsByTime } from "@/lib/setup";
 import type { Room, Setup } from "@/lib/types";
-import { QR_THEMES, THEME_KEYS, type ThemeKey } from "@/lib/qr-themes";
+import type { ThemeKey } from "@/lib/qr-themes";
 import { QrCard, type Paper } from "../qr-card";
 
 const ROTATE_OPTIONS = [
@@ -18,7 +18,6 @@ const ROTATE_OPTIONS = [
 // A renewed QR makes the old printed card stop working: reprint those rooms.
 export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   const { setup } = props;
-  const [theme, setTheme] = useState<ThemeKey | "group">("group");
   const [paper, setPaper] = useState<Paper>("dark");
   const [groupId, setGroupId] = useState("all");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -28,9 +27,9 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   const groups = [...setup.groups].sort((a, b) => a.sort - b.sort);
   const rounds = roundsByTime(setup.rounds);
   const sectionOf = (room: Room) => setup.sections.find((s) => s.roomId === room.id && s.active);
-  // each group's saved colour (Admin → Groups), unless one colour is chosen for this print
+  // each group's colour is set in Admin → Groups
   const themeFor = (gid: string | null | undefined): ThemeKey =>
-    theme !== "group" ? theme : (groups.find((g) => g.id === gid)?.qrTheme ?? "midnight");
+    groups.find((g) => g.id === gid)?.qrTheme ?? "midnight";
   const rooms = setup.rooms
     .filter((r) => r.active && sectionOf(r))
     .filter((r) => groupId === "all" || sectionOf(r)?.groupId === groupId)
@@ -74,7 +73,7 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
         <div>
           <h2 className="text-xl font-semibold">QR codes</h2>
           <p className="text-sm text-muted">
-            One card per room with a section. In the print window, choose A4 and turn on “Background graphics”.
+            One card per room with a section, in its group&apos;s colour (set in Groups). In the print window, choose A4 and turn on “Background graphics”.
           </p>
         </div>
 
@@ -86,17 +85,6 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            Colour
-            <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeKey | "group")} className={select}>
-              <option value="group">Each group&apos;s colour</option>
-              {THEME_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {QR_THEMES[k].name}
                 </option>
               ))}
             </select>
