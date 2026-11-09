@@ -37,32 +37,43 @@ export function sampleSetup(): Setup {
   }));
   const rounds: Round[] = [
     { id: "r-start", name: "Start of test", startTime: "07:50", countsKind: "attendance", sort: 1 },
-    { id: "r-mid", name: "Mid-test", startTime: "08:15", countsKind: "non_attempting", sort: 2 },
+    { id: "r-mid", name: "During the test", startTime: "08:15", countsKind: "non_attempting", sort: 2 },
+    { id: "r-end", name: "Before collecting the scripts", startTime: "08:30", countsKind: "none", sort: 3 },
   ];
-  const check = (
-    id: string,
-    roundId: string,
-    audience: Check["audience"],
-    instruction: string,
-    question: string,
-    sort: number,
-  ): Check => ({ id, roundId, audience, instruction, question, minSeconds: 8, active: true, sort });
-  const checks: Check[] = [
-    check("whiteboard", "r-start", "invigilator", "Look at the whiteboard.",
-      "Is the whiteboard written (subject, date, time, instructions)?", 1),
-    check("seating", "r-start", "both", "Walk once around the room.", "Is the seating arranged as per plan?", 2),
-    check("ab-papers", "r-start", "both", "Look at the papers of two students sitting side by side.",
-      "Are A/B papers distributed properly?", 3),
-    check("margin", "r-mid", "both",
-      "Tell students to draw margin lines. Then look at 5 answer sheets in the back row.",
-      "Have you told students about margin lines?", 4),
-    check("underlining", "r-mid", "both", "Remind students to underline key points.",
-      "Have you told students about underlining?", 5),
-    check("highlighting", "r-mid", "both", "Remind students to highlight headings.",
-      "Have you told students about highlighting?", 6),
-    check("lagging", "r-mid", "floor_incharge", "Ask the invigilator which students are falling behind.",
-      "Have you informed the teacher about students who are lagging?", 7),
+  // [round, question, instruction], in the order teachers see them
+  const list: [string, string, string][] = [
+    ["r-start", "Are students seated in roll-number order?",
+      "Walk the room and confirm that every student is seated according to the roll-number seating plan."],
+    ["r-start", "Have Paper A and Paper B been distributed alternately by row?",
+      "Check that adjacent rows hold different paper versions, following the roll-number rows."],
+    ["r-start", "Are the paper details displayed on the whiteboard?",
+      "Subject, paper version, date, start and finish time, and total marks should be written clearly."],
+    ["r-start", "Has the attendance sheet been circulated and collected from all students?",
+      "Make sure every present student has signed and the sheet is back with you."],
+    ["r-start", "Does your headcount match the attendance sheet?",
+      "Count the students in the room and compare the total with the signatures."],
+    ["r-start", "Have all absentees been verified?", "Confirm each absent roll number against the attendance sheet."],
+    ["r-mid", "Have students been instructed to draw margins?", "Check margins on at least five answer sheets."],
+    ["r-mid", "Have students been instructed to underline headings?", "Check headings on the same answer sheets."],
+    ["r-mid", "Have students been instructed to highlight key terms?",
+      "Check for highlighted key terms on the same answer sheets."],
+    ["r-mid", "Have you identified students who are not attempting the paper?",
+      "Walk the room and look for students who have not started writing or have stopped."],
+    ["r-end", "Have the answer sheets been stapled under your supervision?",
+      "Students must staple their sheets in front of you, not before the test."],
+    ["r-end", "Have you checked the answer sheets for concealed or pre-written material?",
+      "Inspect for extra sheets attached that were written outside the examination room."],
   ];
+  const checks: Check[] = list.map(([roundId, question, instruction], i) => ({
+    id: `check-${i + 1}`,
+    roundId,
+    audience: "both",
+    instruction,
+    question,
+    minSeconds: 8,
+    active: true,
+    sort: i + 1,
+  }));
   const staff: Staff[] = [
     ...Array.from({ length: 30 }, (_, i): Staff => ({
       id: `t${i + 1}`,

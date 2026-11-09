@@ -2,13 +2,16 @@
 // reach the browser. Tables are defined in supabase/migrations.
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { newToken } from "../entities";
 import type { StoredReport } from "../report";
 import { localParts } from "../time";
 import type { Entities, EntityKind, Room, School, Setup } from "../types";
 import type { Backend } from "./types";
 
-const SCHOOL_SLUG = process.env.SCHOOL_SLUG || "main";
+// The school used when a request's web address is not listed in any school's
+// domains (local development, previews).
+const DEFAULT_SLUG = process.env.SCHOOL_SLUG || "main";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -90,15 +93,43 @@ interface SchoolRow {
   qr_rotate_days: number;
 }
 
-async function school(): Promise<SchoolRow> {
+const SCHOOL_COLUMNS = "id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days";
+
+async function requestHost(): Promise<string | null> {
+  try {
+    const host = (await headers()).get("host");
+    return host ? host.split(":")[0].toLowerCase() : null;
+  } catch {
+    return null; // not inside a request (e.g. build time)
+  }
+}
+
+// Each school (or campus) has its own web addresses in schools.domains; the
+// request's address decides whose rooms, staff and admins are used.
+async function loadSchool(slug?: string): Promise<SchoolRow> {
+  if (!slug) {
+    const host = await requestHost();
+    if (host) {
+      const { data, error } = await supabase
+        .from("schools")
+        .select(SCHOOL_COLUMNS)
+        .contains("domains", [host])
+        .limit(1)
+        .maybeSingle<SchoolRow>();
+      if (error) throw new Error(`School for ${host}: ${error.message}`);
+      if (data) return data;
+    }
+  }
+  const pick = slug ?? DEFAULT_SLUG;
   return must(
-    await supabase
-      .from("schools")
-      .select("id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days")
-      .eq("slug", SCHOOL_SLUG)
-      .single<SchoolRow>(),
-    `School '${SCHOOL_SLUG}'`,
+    await supabase.from("schools").select(SCHOOL_COLUMNS).eq("slug", pick).single<SchoolRow>(),
+    `School '${pick}'`,
   );
+}
+
+export async function listSchoolSlugs(): Promise<string[]> {
+  const rows = must(await supabase.from("schools").select("slug").order("slug"), "List schools");
+  return rows.map((r) => r.slug as string);
 }
 
 const toSchool = (s: SchoolRow): School => ({
@@ -119,190 +150,194 @@ async function listKind<K extends EntityKind>(kind: K, schoolId: string): Promis
   return rows.map((r) => fromDb(kind, r));
 }
 
-export const supabaseBackend: Backend = {
-  name: "supabase",
+// slug: a specific school (background jobs); omitted: the school of the current request.
+export function supabaseBackendFor(slug?: string): Backend {
+  const school = () => loadSchool(slug);
+  return {
+    name: "supabase",
 
-  async getSetup(): Promise<Setup> {
-    const s = await school();
-    const [groups, rooms, sections, rounds, checks, staff, admins] = await Promise.all([
-      listKind("groups", s.id),
-      listKind("rooms", s.id),
-      listKind("sections", s.id),
-      listKind("rounds", s.id),
-      listKind("checks", s.id),
-      listKind("staff", s.id),
-      listKind("admins", s.id),
-    ]);
-    return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff, admins };
-  },
+    async getSetup(): Promise<Setup> {
+      const s = await school();
+      const [groups, rooms, sections, rounds, checks, staff, admins] = await Promise.all([
+        listKind("groups", s.id),
+        listKind("rooms", s.id),
+        listKind("sections", s.id),
+        listKind("rounds", s.id),
+        listKind("checks", s.id),
+        listKind("staff", s.id),
+        listKind("admins", s.id),
+      ]);
+      return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff, admins };
+    },
 
-  async getRoomByToken(token) {
-    const s = await school();
-    const { data, error } = await supabase
-      .from("rooms")
-      .select(selectCols("rooms"))
-      .eq("school_id", s.id)
-      .eq("qr_token", token)
-      .eq("active", true)
-      .maybeSingle<Row>();
-    if (error) throw new Error(`Room: ${error.message}`);
-    return data ? fromDb("rooms", data) : null;
-  },
-
-  async saveSchool(next) {
-    const s = await school();
-    const saved = must(
-      await supabase
-        .from("schools")
-        .update({
-          name: next.name,
-          timezone: next.timezone,
-          end_time: next.endTime,
-          buffer_minutes: next.bufferMinutes,
-          test_weekdays: next.testWeekdays,
-          qr_rotate_days: next.qrRotateDays,
-        })
-        .eq("id", s.id)
-        .select("id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days")
-        .single<SchoolRow>(),
-      "Save school",
-    );
-    return toSchool(saved);
-  },
-
-  async upsert(kind, input) {
-    const s = await school();
-    const { table } = COLUMNS[kind];
-    const values = toDb(kind, input as Row);
-    const query = input.id
-      ? supabase.from(table).update(values).eq("id", input.id).eq("school_id", s.id)
-      : supabase
-          .from(table)
-          .insert({ ...values, school_id: s.id, ...(kind === "rooms" ? { qr_token: newToken() } : {}) });
-    const row = must(await query.select(selectCols(kind)).single<Row>(), `Save ${kind}`);
-    return fromDb(kind, row);
-  },
-
-  async remove(kind, id) {
-    const s = await school();
-    const { error } = await supabase.from(COLUMNS[kind].table).delete().eq("id", id).eq("school_id", s.id);
-    if (error) throw new Error(`Delete ${kind}: ${error.message}`);
-  },
-
-  async renewQr(roomIds): Promise<Room[]> {
-    const s = await school();
-    const now = new Date().toISOString();
-    const out: Room[] = [];
-    for (const id of roomIds) {
-      const row = must(
-        await supabase
-          .from("rooms")
-          .update({ qr_token: newToken(), qr_issued_at: now })
-          .eq("id", id)
-          .eq("school_id", s.id)
-          .select(selectCols("rooms"))
-          .single<Row>(),
-        "New QR code",
-      );
-      out.push(fromDb("rooms", row));
-    }
-    return out;
-  },
-
-  async saveReport({ receivedAt = new Date(), ...r }) {
-    const s = await school();
-    const saved = must(
-      await supabase
-        .from("reports")
-        .insert({
-          school_id: s.id,
-          room_id: r.roomId,
-          section_id: r.sectionId,
-          staff_id: r.staffId,
-          round_id: r.roundId,
-          room_code: r.roomCode,
-          section_name: r.sectionName,
-          staff_name: r.staffName,
-          round_name: r.roundName,
-          role: r.role,
-          local_date: localParts(receivedAt, s.timezone).dateKey,
-          arrived_at: r.arrivedAt,
-          received_at: receivedAt.toISOString(),
-          problems: r.problems,
-          total: r.attendance?.total ?? null,
-          present: r.attendance?.present ?? null,
-          absent: r.attendance?.absent ?? null,
-          late: r.attendance?.late ?? null,
-          non_attempting: r.nonAttempting?.count ?? null,
-          non_attempting_names: r.nonAttempting?.names || null,
-        })
-        .select("id")
-        .single<{ id: string }>(),
-      "Save report",
-    );
-    if (r.answers.length) {
-      const { error } = await supabase.from("answers").insert(
-        r.answers.map((a) => ({
-          report_id: saved.id,
-          check_id: a.checkId,
-          question: r.questions[a.checkId] ?? a.checkId,
-          result: a.result,
-          seconds_on_card: Math.round(a.secondsOnCard),
-        })),
-      );
-      if (error) throw new Error(`Save answers: ${error.message}`);
-    }
-  },
-
-  async listReports(dateKey) {
-    const s = await school();
-    const rows = must(
-      await supabase
-        .from("reports")
-        .select("*, rooms(qr_token), answers(check_id, question, result, seconds_on_card)")
+    async getRoomByToken(token) {
+      const s = await school();
+      const { data, error } = await supabase
+        .from("rooms")
+        .select(selectCols("rooms"))
         .eq("school_id", s.id)
-        .eq("local_date", dateKey)
-        .returns<ReportRow[]>(),
-      "Load reports",
-    );
-    return rows.map(
-      (r): StoredReport => ({
-        id: r.id,
-        roomId: r.room_id,
-        roomToken: r.rooms?.qr_token ?? "",
-        roomCode: r.room_code,
-        sectionId: r.section_id,
-        sectionName: r.section_name,
-        staffId: r.staff_id ?? "",
-        staffName: r.staff_name,
-        roundId: r.round_id ?? "",
-        roundName: r.round_name,
-        role: r.role,
-        arrivedAt: r.arrived_at,
-        receivedAt: r.received_at,
-        problems: r.problems,
-        questions: Object.fromEntries(r.answers.map((a) => [a.check_id ?? a.question, a.question])),
-        answers: r.answers.map((a) => ({
-          checkId: a.check_id ?? a.question,
-          result: a.result,
-          secondsOnCard: a.seconds_on_card,
-        })),
-        attendance:
-          r.total === null
-            ? undefined
-            : { total: r.total, present: r.present ?? 0, absent: r.absent ?? 0, late: r.late ?? 0 },
-        nonAttempting:
-          r.non_attempting === null ? undefined : { count: r.non_attempting, names: r.non_attempting_names ?? "" },
-      }),
-    );
-  },
+        .eq("qr_token", token)
+        .eq("active", true)
+        .maybeSingle<Row>();
+      if (error) throw new Error(`Room: ${error.message}`);
+      return data ? fromDb("rooms", data) : null;
+    },
 
-  async clearReports(dateKey) {
-    const s = await school();
-    const { error } = await supabase.from("reports").delete().eq("school_id", s.id).eq("local_date", dateKey);
-    if (error) throw new Error(`Clear reports: ${error.message}`);
-  },
-};
+    async saveSchool(next) {
+      const s = await school();
+      const saved = must(
+        await supabase
+          .from("schools")
+          .update({
+            name: next.name,
+            timezone: next.timezone,
+            end_time: next.endTime,
+            buffer_minutes: next.bufferMinutes,
+            test_weekdays: next.testWeekdays,
+            qr_rotate_days: next.qrRotateDays,
+          })
+          .eq("id", s.id)
+          .select("id, name, timezone, end_time, buffer_minutes, test_weekdays, qr_rotate_days")
+          .single<SchoolRow>(),
+        "Save school",
+      );
+      return toSchool(saved);
+    },
+
+    async upsert(kind, input) {
+      const s = await school();
+      const { table } = COLUMNS[kind];
+      const values = toDb(kind, input as Row);
+      const query = input.id
+        ? supabase.from(table).update(values).eq("id", input.id).eq("school_id", s.id)
+        : supabase
+            .from(table)
+            .insert({ ...values, school_id: s.id, ...(kind === "rooms" ? { qr_token: newToken() } : {}) });
+      const row = must(await query.select(selectCols(kind)).single<Row>(), `Save ${kind}`);
+      return fromDb(kind, row);
+    },
+
+    async remove(kind, id) {
+      const s = await school();
+      const { error } = await supabase.from(COLUMNS[kind].table).delete().eq("id", id).eq("school_id", s.id);
+      if (error) throw new Error(`Delete ${kind}: ${error.message}`);
+    },
+
+    async renewQr(roomIds): Promise<Room[]> {
+      const s = await school();
+      const now = new Date().toISOString();
+      const out: Room[] = [];
+      for (const id of roomIds) {
+        const row = must(
+          await supabase
+            .from("rooms")
+            .update({ qr_token: newToken(), qr_issued_at: now })
+            .eq("id", id)
+            .eq("school_id", s.id)
+            .select(selectCols("rooms"))
+            .single<Row>(),
+          "New QR code",
+        );
+        out.push(fromDb("rooms", row));
+      }
+      return out;
+    },
+
+    async saveReport({ receivedAt = new Date(), ...r }) {
+      const s = await school();
+      const saved = must(
+        await supabase
+          .from("reports")
+          .insert({
+            school_id: s.id,
+            room_id: r.roomId,
+            section_id: r.sectionId,
+            staff_id: r.staffId,
+            round_id: r.roundId,
+            room_code: r.roomCode,
+            section_name: r.sectionName,
+            staff_name: r.staffName,
+            round_name: r.roundName,
+            role: r.role,
+            local_date: localParts(receivedAt, s.timezone).dateKey,
+            arrived_at: r.arrivedAt,
+            received_at: receivedAt.toISOString(),
+            problems: r.problems,
+            total: r.attendance?.total ?? null,
+            present: r.attendance?.present ?? null,
+            absent: r.attendance?.absent ?? null,
+            late: r.attendance?.late ?? null,
+            non_attempting: r.nonAttempting?.count ?? null,
+            non_attempting_names: r.nonAttempting?.names || null,
+          })
+          .select("id")
+          .single<{ id: string }>(),
+        "Save report",
+      );
+      if (r.answers.length) {
+        const { error } = await supabase.from("answers").insert(
+          r.answers.map((a) => ({
+            report_id: saved.id,
+            check_id: a.checkId,
+            question: r.questions[a.checkId] ?? a.checkId,
+            result: a.result,
+            seconds_on_card: Math.round(a.secondsOnCard),
+          })),
+        );
+        if (error) throw new Error(`Save answers: ${error.message}`);
+      }
+    },
+
+    async listReports(dateKey) {
+      const s = await school();
+      const rows = must(
+        await supabase
+          .from("reports")
+          .select("*, rooms(qr_token), answers(check_id, question, result, seconds_on_card)")
+          .eq("school_id", s.id)
+          .eq("local_date", dateKey)
+          .returns<ReportRow[]>(),
+        "Load reports",
+      );
+      return rows.map(
+        (r): StoredReport => ({
+          id: r.id,
+          roomId: r.room_id,
+          roomToken: r.rooms?.qr_token ?? "",
+          roomCode: r.room_code,
+          sectionId: r.section_id,
+          sectionName: r.section_name,
+          staffId: r.staff_id ?? "",
+          staffName: r.staff_name,
+          roundId: r.round_id ?? "",
+          roundName: r.round_name,
+          role: r.role,
+          arrivedAt: r.arrived_at,
+          receivedAt: r.received_at,
+          problems: r.problems,
+          questions: Object.fromEntries(r.answers.map((a) => [a.check_id ?? a.question, a.question])),
+          answers: r.answers.map((a) => ({
+            checkId: a.check_id ?? a.question,
+            result: a.result,
+            secondsOnCard: a.seconds_on_card,
+          })),
+          attendance:
+            r.total === null
+              ? undefined
+              : { total: r.total, present: r.present ?? 0, absent: r.absent ?? 0, late: r.late ?? 0 },
+          nonAttempting:
+            r.non_attempting === null ? undefined : { count: r.non_attempting, names: r.non_attempting_names ?? "" },
+        }),
+      );
+    },
+
+    async clearReports(dateKey) {
+      const s = await school();
+      const { error } = await supabase.from("reports").delete().eq("school_id", s.id).eq("local_date", dateKey);
+      if (error) throw new Error(`Clear reports: ${error.message}`);
+    },
+  };
+}
 
 interface ReportRow {
   id: string;

@@ -36,30 +36,42 @@ join rooms r on r.school_id = s.id and r.code = p.room;
 insert into rounds (school_id, name, start_time, counts_kind, sort)
 select id, r.name, r.start_time, r.counts_kind, r.sort
 from schools, (values
-  ('Start of test', '07:50', 'attendance', 1),
-  ('Mid-test',      '08:15', 'non_attempting', 2)
+  ('Start of test',                 '07:50', 'attendance',     1),
+  ('During the test',               '08:15', 'non_attempting', 2),
+  ('Before collecting the scripts', '08:30', 'none',           3)
 ) as r(name, start_time, counts_kind, sort)
 where slug = 'main';
 
+-- Checks in the order teachers see them.
 insert into checks (school_id, round_id, audience, instruction, question, sort)
-select s.id, r.id, c.audience, c.instruction, c.question, c.sort
+select s.id, r.id, 'both', c.instruction, c.question, c.sort
 from schools s
 join (values
-  ('Start of test', 'invigilator', 'Look at the whiteboard.',
-   'Is the whiteboard written (subject, date, time, instructions)?', 1),
-  ('Start of test', 'both', 'Walk once around the room.',
-   'Is the seating arranged as per plan?', 2),
-  ('Start of test', 'both', 'Look at the papers of two students sitting side by side.',
-   'Are A/B papers distributed properly?', 3),
-  ('Mid-test', 'both', 'Tell students to draw margin lines. Then look at 5 answer sheets in the back row.',
-   'Have you told students about margin lines?', 4),
-  ('Mid-test', 'both', 'Remind students to underline key points.',
-   'Have you told students about underlining?', 5),
-  ('Mid-test', 'both', 'Remind students to highlight headings.',
-   'Have you told students about highlighting?', 6),
-  ('Mid-test', 'floor_incharge', 'Ask the invigilator which students are falling behind.',
-   'Have you informed the teacher about students who are lagging?', 7)
-) as c(round_name, audience, instruction, question, sort) on true
+  ('Start of test', 'Walk the room and confirm that every student is seated according to the roll-number seating plan.',
+   'Are students seated in roll-number order?', 1),
+  ('Start of test', 'Check that adjacent rows hold different paper versions, following the roll-number rows.',
+   'Have Paper A and Paper B been distributed alternately by row?', 2),
+  ('Start of test', 'Subject, paper version, date, start and finish time, and total marks should be written clearly.',
+   'Are the paper details displayed on the whiteboard?', 3),
+  ('Start of test', 'Make sure every present student has signed and the sheet is back with you.',
+   'Has the attendance sheet been circulated and collected from all students?', 4),
+  ('Start of test', 'Count the students in the room and compare the total with the signatures.',
+   'Does your headcount match the attendance sheet?', 5),
+  ('Start of test', 'Confirm each absent roll number against the attendance sheet.',
+   'Have all absentees been verified?', 6),
+  ('During the test', 'Check margins on at least five answer sheets.',
+   'Have students been instructed to draw margins?', 7),
+  ('During the test', 'Check headings on the same answer sheets.',
+   'Have students been instructed to underline headings?', 8),
+  ('During the test', 'Check for highlighted key terms on the same answer sheets.',
+   'Have students been instructed to highlight key terms?', 9),
+  ('During the test', 'Walk the room and look for students who have not started writing or have stopped.',
+   'Have you identified students who are not attempting the paper?', 10),
+  ('Before collecting the scripts', 'Students must staple their sheets in front of you, not before the test.',
+   'Have the answer sheets been stapled under your supervision?', 11),
+  ('Before collecting the scripts', 'Inspect for extra sheets attached that were written outside the examination room.',
+   'Have you checked the answer sheets for concealed or pre-written material?', 12)
+) as c(round_name, instruction, question, sort) on true
 join rounds r on r.school_id = s.id and r.name = c.round_name
 where s.slug = 'main';
 

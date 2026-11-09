@@ -54,7 +54,7 @@ export function findProblems(report: ReportInput, checks: Check[]): string[] {
   const att = report.attendance;
   if (att && att.present + att.absent !== att.total) {
     problems.push(
-      `Counts do not add up: present ${att.present} + absent ${att.absent} ≠ total ${att.total}`,
+      `Counts do not add up: present ${att.present} + absent ${att.absent} ≠ class strength ${att.total}`,
     );
   }
   const na = report.nonAttempting;

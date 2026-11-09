@@ -315,8 +315,8 @@ function SectionDetail(props: { section: BoardSection; board: Board; onClose: ()
             </ul>
             {rep.attendance && (
               <p className="text-sm text-muted">
-                Total {rep.attendance.total} · Present {rep.attendance.present} · Absent {rep.attendance.absent} ·
-                Late {rep.attendance.late}
+                Class strength {rep.attendance.total} · Present {rep.attendance.present} · Absent{" "}
+                {rep.attendance.absent}
               </p>
             )}
             {rep.nonAttempting && (

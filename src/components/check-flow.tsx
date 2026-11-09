@@ -407,28 +407,25 @@ function NumberField(props: { id: string; label: string; value: string; onChange
 }
 
 function AttendanceCard(props: { onSubmit: (a: Attendance) => void }) {
-  const [v, setV] = useState({ total: "", present: "", absent: "", late: "0" });
+  const [v, setV] = useState({ total: "", present: "", absent: "" });
   const n = (s: string) => Number(s || 0);
   const filled = v.total !== "" && v.present !== "" && v.absent !== "";
   const mismatch = filled && n(v.present) + n(v.absent) !== n(v.total);
   const set = (k: keyof typeof v) => (val: string) => setV({ ...v, [k]: val });
 
   return (
-    <Card eyebrow="Last step" title="Count the students" body="Numbers only.">
+    <Card eyebrow="Last step" title="Student count" body="Enter numbers from the attendance sheet.">
       <div className="flex flex-col gap-3">
-        <NumberField id="total" label="Total students" value={v.total} onChange={set("total")} />
-        <NumberField id="present" label="Present" value={v.present} onChange={set("present")} />
-        <NumberField id="absent" label="Absent" value={v.absent} onChange={set("absent")} />
-        <NumberField id="late" label="Late arrivals" value={v.late} onChange={set("late")} />
+        <NumberField id="total" label="Class strength" value={v.total} onChange={set("total")} />
+        <NumberField id="present" label="Students present" value={v.present} onChange={set("present")} />
+        <NumberField id="absent" label="Students absent" value={v.absent} onChange={set("absent")} />
       </div>
       {mismatch && (
-        <p className="text-sm text-warn">Present + absent should equal total. Please recount.</p>
+        <p className="text-sm text-warn">Present + absent must equal class strength. Please recount.</p>
       )}
       <BigButton
         disabled={!filled || mismatch}
-        onClick={() =>
-          props.onSubmit({ total: n(v.total), present: n(v.present), absent: n(v.absent), late: n(v.late) })
-        }
+        onClick={() => props.onSubmit({ total: n(v.total), present: n(v.present), absent: n(v.absent), late: 0 })}
       >
         Send report
       </BigButton>
@@ -447,7 +444,7 @@ function NonAttemptingCard(props: { onSubmit: (na: NonAttempting) => void }) {
       title="Is anyone not attempting the paper?"
       body="Look around the room. Count students who are not writing."
     >
-      <NumberField id="non-attempting" label="Non-attempting" value={count} onChange={setCount} />
+      <NumberField id="non-attempting" label="Non-attempting students" value={count} onChange={setCount} />
       {c > 0 && (
         <label htmlFor="na-names" className="flex flex-col gap-2">
           <span className="text-sm font-medium">Their names</span>
