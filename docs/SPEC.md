@@ -2,7 +2,7 @@
 
 A Keystone Labs product (alongside Axiom and Northline).
 Product name: **TWELVE**.
-Planned address: `twelve.keystone-labs.site` (subdomain of keystone-labs.site).
+Planned address: `twelve.keystonelabs.site` (subdomain of keystonelabs.site).
 
 ---
 
@@ -40,7 +40,7 @@ not data collection. Data and alerts come as a by-product.
 | Auth (admins) | **Supabase Auth** — email magic link + Google sign-in | No passwords for the principal to forget |
 | Live updates | **Supabase Realtime** | Dashboard turns rooms green/red the moment a report lands |
 | Scheduled jobs | **Vercel Cron** (calls an API route every 5 min) | Runs the "no report after X minutes" check per school |
-| Email alerts | **Resend** | Reliable delivery, sent from `alerts@keystone-labs.site` |
+| Email alerts | **Resend** | Reliable delivery, sent from `alerts@keystonelabs.site` |
 | Phone alerts | **Web Push (PWA)** | Admin installs the dashboard to the home screen → real push notifications, free. (Fixes the "self-sent Gmail doesn't ring" problem.) |
 | WhatsApp (later, optional) | Meta WhatsApp Cloud API | Paid per message; phase 3 |
 | UI | **Tailwind CSS + shadcn/ui**, Framer Motion for card transitions | Fast to build, looks modern on phones |
@@ -60,7 +60,7 @@ Single repository (a monorepo is not needed at this size).
 1. **Multi-school data model from day one** (every table has `school_id`), but launch with
    **one school** (yours). Selling to other schools later then needs no rebuild.
 2. **Teachers never log in.** The QR contains an unguessable room token:
-   `https://twelve.keystone-labs.site/r/<room_token>`. Rate-limited per room and per device.
+   `https://twelve.keystonelabs.site/r/<room_token>`. Rate-limited per room and per device.
 3. **Checks are data, not code.** The admin edits checks (text, instruction, order,
    timer, round, who sees it) in settings. No developer needed to change a question.
 4. **Server decides alerts.** Every answer is saved on the server, which decides if it is a
@@ -168,7 +168,7 @@ Teacher submissions go through server API routes that look up the room by `qr_to
 | **0. Setup** | Repo, Vercel project, Supabase project, subdomain DNS, Resend domain | 1 day |
 | **1. MVP (your school)** | Teacher card flow, rounds, alerts (email + push), missing-room check, live board, reports + Excel, QR PDF, settings for rooms/checks/schedule, data seeded with your 51 rooms and checks | 2–3 weeks |
 | **2. Pilot** | Run alongside Google system for 1–2 weeks, fix issues, switch QR codes | 1–2 weeks |
-| **3. Product** | Teacher insights, multi-school sign-up, billing (Stripe or local payment), landing page on keystone-labs.site, WhatsApp alerts | later |
+| **3. Product** | Teacher insights, multi-school sign-up, billing (Stripe or local payment), landing page on keystonelabs.site, WhatsApp alerts | later |
 
 ---
 
@@ -186,7 +186,7 @@ Teacher submissions go through server API routes that look up the room by `qr_to
 
 | Decision | Choice |
 |---|---|
-| Product name | **TWELVE** — `twelve.keystone-labs.site` |
+| Product name | **TWELVE** — `twelve.keystonelabs.site` |
 | Rounds per test | **Two** (start 7:50, mid-test ~8:15) |
 | Timer on each card | **8 seconds** before "Done" unlocks |
 | Teacher identity | **Pick from staff list** (no typing) |

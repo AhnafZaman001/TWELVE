@@ -36,7 +36,7 @@ function render(text, px = 8) {
 }
 
 // real-length links on every host the app may run on, with random tokens
-const hosts = ["https://twelve.keystone-labs.site", "http://localhost:3000", "http://192.168.1.20:3000"];
+const hosts = ["https://twelve.keystonelabs.site", "http://localhost:3000", "http://192.168.1.20:3000"];
 const token = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
 let failed = 0;
 for (const text of hosts.flatMap((h) => Array.from({ length: 10 }, () => `${h}/r/${token()}`))) {

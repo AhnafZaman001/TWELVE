@@ -27,6 +27,9 @@ export default function LoginPage() {
           Sign-in needs Supabase. This local copy runs on sample data and is open without signing in.
         </p>
       )}
+      <a href="/privacy" className="text-center text-xs text-muted underline underline-offset-4">
+        Privacy policy
+      </a>
     </main>
   );
 }

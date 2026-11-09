@@ -50,7 +50,7 @@ report is saved in Supabase.
    the redirect URI shown in Supabase → Authentication → Sign In / Providers → Google.
    Paste its Client ID and Client Secret into that Supabase page and enable Google.
 3. **Supabase → Authentication → URL Configuration:** Site URL `http://localhost:3000`
-   (later `https://twelve.keystone-labs.site`); add both to Redirect URLs with `/**`.
+   (later `https://twelve.keystonelabs.site`); add both to Redirect URLs with `/**`.
 4. **Email codes:** in Authentication → Emails, make the *Magic link* template show
    `{{ .Token }}` (the 6-digit code). Supabase's built-in email only reaches your own
    team's addresses; for teachers, connect Resend under Authentication → SMTP.

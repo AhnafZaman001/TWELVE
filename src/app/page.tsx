@@ -96,7 +96,12 @@ export default function Home() {
         </ul>
       </section>
 
-      <footer className="text-sm text-muted">In development · twelve.keystone-labs.site</footer>
+      <footer className="flex items-center justify-between text-sm text-muted">
+        <span>TWELVE by Keystone Labs</span>
+        <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
+          Privacy policy
+        </Link>
+      </footer>
     </main>
   );
 }
