@@ -16,8 +16,8 @@ const PLACED: [room: string, section: string, group: "y1" | "y2"][] = [
 
 export function sampleSetup(): Setup {
   const groups: Group[] = [
-    { id: "y1", name: "1st Year", sort: 1 },
-    { id: "y2", name: "2nd Year", sort: 2 },
+    { id: "y1", name: "1st Year", qrTheme: "midnight", sort: 1 },
+    { id: "y2", name: "2nd Year", qrTheme: "rose", sort: 2 },
   ];
   const rooms: Room[] = Array.from({ length: 51 }, (_, n) => ({
     id: `room-k${n}`,

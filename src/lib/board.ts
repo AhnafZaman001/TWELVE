@@ -36,13 +36,24 @@ export interface BoardRound {
   deadline: string;
 }
 
-export interface BoardAlert {
-  id: string;
-  time: string;
-  kind: "problem" | "missing";
-  title: string;
-  detail: string[];
-}
+export type BoardAlert =
+  | {
+      kind: "problem";
+      id: string;
+      time: string;
+      place: string; // "K-4 · F-1A"
+      roundName: string;
+      who: string;
+      role: StoredReport["role"];
+      items: string[]; // what went wrong
+    }
+  | {
+      kind: "missing";
+      id: string;
+      time: string; // the round's deadline
+      roundName: string;
+      sections: string[]; // "K-4 · F-1A"
+    };
 
 export interface Board {
   dateKey: string;
@@ -124,11 +135,14 @@ export function buildBoard(input: {
     for (const rep of sec.reports) {
       if (rep.problems.length === 0) continue;
       alerts.push({
+        kind: "problem",
         id: rep.id,
         time: rep.time,
-        kind: "problem",
-        title: `${label(sec)} · ${rep.roundName}`,
-        detail: [`${rep.staffName} (${rep.role === "invigilator" ? "Invigilator" : "Floor incharge"})`, ...rep.problems],
+        place: label(sec),
+        roundName: rep.roundName,
+        who: rep.staffName,
+        role: rep.role,
+        items: rep.problems,
       });
     }
   }
@@ -136,11 +150,11 @@ export function buildBoard(input: {
     const missing = sections.filter((s) => s.status[round.id] === "missing");
     if (missing.length === 0) continue;
     alerts.push({
+      kind: "missing",
       id: `missing-${round.id}`,
       time: round.deadline,
-      kind: "missing",
-      title: `No report from ${missing.length} section${missing.length > 1 ? "s" : ""} · ${round.name}`,
-      detail: [missing.map(label).join(", ")],
+      roundName: round.name,
+      sections: missing.map(label),
     });
   }
   alerts.sort((a, b) => b.time.localeCompare(a.time));

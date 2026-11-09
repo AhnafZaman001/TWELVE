@@ -12,7 +12,7 @@ const email = z.preprocess(cleanEmail, z.email("Not a valid email").max(200));
 const optionalEmail = z.preprocess(cleanEmail, z.email("Not a valid email").max(200).nullable());
 
 export const entitySchemas = {
-  groups: z.object({ id: id.optional(), name, sort }),
+  groups: z.object({ id: id.optional(), name, qrTheme: z.enum(["midnight", "ember", "ice", "rose"]), sort }),
   rooms: z.object({ id: id.optional(), code: name, active: z.boolean(), sort }),
   sections: z.object({
     id: id.optional(),
@@ -51,6 +51,7 @@ export const entitySchemas = {
     name: z.string().trim().max(120),
     email,
     role: z.enum(["owner", "admin", "coordinator"]),
+    emailAlerts: z.boolean(),
   }),
 } satisfies Record<EntityKind, z.ZodType>;
 

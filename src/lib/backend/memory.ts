@@ -7,8 +7,8 @@ import { localParts } from "../time";
 import type { Entities, EntityKind, Setup } from "../types";
 import type { Backend } from "./types";
 
-const g = globalThis as unknown as { __twelve?: { setup: Setup; reports: StoredReport[] } };
-const state = (g.__twelve ??= { setup: sampleSetup(), reports: [] });
+const g = globalThis as unknown as { __twelve?: { setup: Setup; reports: StoredReport[]; alerts: Set<string> } };
+const state = (g.__twelve ??= { setup: sampleSetup(), reports: [], alerts: new Set() });
 const dayOf = (r: StoredReport) => localParts(new Date(r.receivedAt), state.setup.school.timezone).dateKey;
 const list = <K extends EntityKind>(kind: K) => state.setup[kind] as Entities[K][];
 
@@ -68,5 +68,13 @@ export const memoryBackend: Backend = {
 
   async clearReports(dateKey) {
     state.reports = state.reports.filter((r) => dayOf(r) !== dateKey);
+  },
+
+  async logAlertOnce(dateKey, kind) {
+    const key = `${dateKey}|${kind}`;
+    const sent = (state.alerts ??= new Set());
+    if (sent.has(key)) return false;
+    sent.add(key);
+    return true;
   },
 };

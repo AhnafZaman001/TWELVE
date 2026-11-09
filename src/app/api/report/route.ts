@@ -1,7 +1,9 @@
-import { authEnabled, getViewer } from "@/lib/auth";
+import { authEnabled, getViewer, requireAccess } from "@/lib/auth";
+import { after } from "next/server";
+import { emailProblemReport } from "@/lib/alerts";
 import { getBackend } from "@/lib/data";
 import { prepareReport } from "@/lib/record";
-import { reportSchema } from "@/lib/report";
+import { findProblems, reportSchema } from "@/lib/report";
 
 export async function POST(request: Request) {
   const parsed = reportSchema.safeParse(await request.json().catch(() => null));
@@ -15,6 +17,13 @@ export async function POST(request: Request) {
   const db = await getBackend();
   const setup = await db.getSetup();
   let report = parsed.data;
+
+  // Admin preview: show what would be flagged, save nothing.
+  if (new URL(request.url).searchParams.get("preview") === "1") {
+    const blocked = await requireAccess("board");
+    if (blocked) return blocked;
+    return Response.json({ ok: true, preview: true, problems: findProblems(report, setup.checks) });
+  }
 
   // With sign-in on, the reporter is whoever is signed in, whatever the phone sent.
   if (authEnabled) {
@@ -33,5 +42,9 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, error: prepared.error }, { status: prepared.status });
   }
   await db.saveReport(prepared.value);
+  if (prepared.value.problems.length) {
+    const report = prepared.value;
+    after(() => emailProblemReport(setup, report).catch((e) => console.error("Alert e-mail:", e)));
+  }
   return Response.json({ ok: true, problems: prepared.value.problems });
 }

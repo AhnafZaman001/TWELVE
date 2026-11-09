@@ -19,4 +19,6 @@ export interface Backend {
   saveReport(report: NewReport): Promise<void>;
   listReports(dateKey: string): Promise<StoredReport[]>;
   clearReports(dateKey: string): Promise<void>;
+  // true the first time a given alert is logged for a day; false if already sent
+  logAlertOnce(dateKey: string, kind: string): Promise<boolean>;
 }

@@ -50,6 +50,7 @@ export function CheckFlow(props: {
   endTime: string;
   checks: Check[];
   me: Staff | null; // signed-in staff member; null in sample mode, where they pick their name
+  preview?: boolean; // an admin trying the flow: nothing is saved
   staff: Staff[];
 }) {
   const { room, section, round, nextRound, me } = props;
@@ -105,7 +106,7 @@ export function CheckFlow(props: {
       nonAttempting: na,
     };
     try {
-      const res = await fetch("/api/report", {
+      const res = await fetch(props.preview ? "/api/report?preview=1" : "/api/report", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(report),
@@ -126,6 +127,11 @@ export function CheckFlow(props: {
           Room {roomLabel(room, section)} · {round.name}
         </span>
       </header>
+      {props.preview && (
+        <p className="mt-3 rounded-xl border border-warn/50 px-3 py-2 text-center text-xs text-warn">
+          Preview for admins · answers are checked but nothing is saved
+        </p>
+      )}
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line" aria-hidden>
         <div
           className="h-full rounded-full bg-accent transition-[width] duration-500"
@@ -201,8 +207,14 @@ export function CheckFlow(props: {
 
         {step.kind === "done" && (
           <Card
-            eyebrow="Report sent"
-            title={step.problems.length ? "Thank you. The principal has been alerted." : "All checks done. Thank you!"}
+            eyebrow={props.preview ? "Preview finished · nothing was saved" : "Report sent"}
+            title={
+              step.problems.length
+                ? props.preview
+                  ? "These would alert the principal."
+                  : "Thank you. The principal has been alerted."
+                : "All checks done. Thank you!"
+            }
           >
             {step.problems.length > 0 && (
               <ul className="flex flex-col gap-2 text-sm">

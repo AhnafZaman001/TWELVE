@@ -3,6 +3,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { newToken } from "../entities";
 import type { StoredReport } from "../report";
 import { localParts } from "../time";
@@ -29,7 +30,7 @@ function must<T>(result: { data: T | null; error: { message: string; code?: stri
 
 // App field name -> database column, per editable list
 const COLUMNS: { [K in EntityKind]: { table: string; order: string; map: Partial<Record<keyof Entities[K], string>> } } = {
-  groups: { table: "groups", order: "sort", map: { id: "id", name: "name", sort: "sort" } },
+  groups: { table: "groups", order: "sort", map: { id: "id", name: "name", qrTheme: "qr_theme", sort: "sort" } },
   rooms: {
     table: "rooms",
     order: "sort",
@@ -64,7 +65,11 @@ const COLUMNS: { [K in EntityKind]: { table: string; order: string; map: Partial
     order: "full_name",
     map: { id: "id", name: "full_name", email: "email", role: "role", active: "active" },
   },
-  admins: { table: "admins", order: "email", map: { id: "id", name: "name", email: "email", role: "role" } },
+  admins: {
+    table: "admins",
+    order: "email",
+    map: { id: "id", name: "name", email: "email", role: "role", emailAlerts: "email_alerts" },
+  },
 };
 
 function fromDb<K extends EntityKind>(kind: K, row: Row): Entities[K] {
@@ -127,6 +132,21 @@ async function loadSchool(slug?: string): Promise<SchoolRow> {
   );
 }
 
+// Within one page render these run once, however many components ask.
+const loadSchoolOnce = cache(loadSchool);
+const loadSetupOnce = cache(async (schoolId: string, s: SchoolRow): Promise<Setup> => {
+  const [groups, rooms, sections, rounds, checks, staff, admins] = await Promise.all([
+    listKind("groups", schoolId),
+    listKind("rooms", schoolId),
+    listKind("sections", schoolId),
+    listKind("rounds", schoolId),
+    listKind("checks", schoolId),
+    listKind("staff", schoolId),
+    listKind("admins", schoolId),
+  ]);
+  return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff, admins };
+});
+
 export async function listSchoolSlugs(): Promise<string[]> {
   const rows = must(await supabase.from("schools").select("slug").order("slug"), "List schools");
   return rows.map((r) => r.slug as string);
@@ -152,22 +172,13 @@ async function listKind<K extends EntityKind>(kind: K, schoolId: string): Promis
 
 // slug: a specific school (background jobs); omitted: the school of the current request.
 export function supabaseBackendFor(slug?: string): Backend {
-  const school = () => loadSchool(slug);
+  const school = () => loadSchoolOnce(slug);
   return {
     name: "supabase",
 
     async getSetup(): Promise<Setup> {
       const s = await school();
-      const [groups, rooms, sections, rounds, checks, staff, admins] = await Promise.all([
-        listKind("groups", s.id),
-        listKind("rooms", s.id),
-        listKind("sections", s.id),
-        listKind("rounds", s.id),
-        listKind("checks", s.id),
-        listKind("staff", s.id),
-        listKind("admins", s.id),
-      ]);
-      return { school: toSchool(s), groups, rooms, sections, rounds, checks, staff, admins };
+      return loadSetupOnce(s.id, s);
     },
 
     async getRoomByToken(token) {
@@ -329,6 +340,14 @@ export function supabaseBackendFor(slug?: string): Backend {
             r.non_attempting === null ? undefined : { count: r.non_attempting, names: r.non_attempting_names ?? "" },
         }),
       );
+    },
+
+    async logAlertOnce(dateKey, kind) {
+      const s = await school();
+      const { error } = await supabase.from("alert_log").insert({ school_id: s.id, local_date: dateKey, kind });
+      if (!error) return true;
+      if (error.code === "23505") return false; // already logged
+      throw new Error(`Alert log: ${error.message}`);
     },
 
     async clearReports(dateKey) {

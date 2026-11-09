@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Board, BoardSection, RoundStatus } from "@/lib/board";
+import type { Board, BoardAlert, BoardSection, RoundStatus } from "@/lib/board";
 import { addMinutes } from "@/lib/time";
 
 const POLL_MS = 5000;
@@ -199,33 +199,92 @@ export function LiveBoard() {
         </section>
 
         <section className="order-first flex flex-col gap-3 lg:order-none" aria-label="Alerts">
-          <h2 className="text-lg font-semibold">Alerts</h2>
+          <h2 className="flex items-baseline gap-2 text-lg font-semibold">
+            Alerts
+            {board.alerts.length > 0 && <span className="text-sm font-normal text-muted">{board.alerts.length}</span>}
+          </h2>
           {board.alerts.length === 0 && (
             <p className="rounded-2xl border border-line p-4 text-sm text-muted">No alerts yet.</p>
           )}
           <ul className="flex flex-col gap-2">
-            {board.alerts.map((a) => (
-              <li
-                key={a.id}
-                className={`rounded-2xl border p-3 text-sm ${a.kind === "missing" ? "border-danger" : "border-danger/40"}`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-semibold">{a.title}</span>
-                  <span className="text-xs text-muted">{a.time}</span>
-                </div>
-                <ul className="mt-1 flex flex-col gap-0.5 text-muted">
-                  {a.detail.map((d) => (
-                    <li key={d}>{d}</li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+            {board.alerts.map((a) =>
+              a.kind === "problem" ? <ProblemAlert key={a.id} alert={a} /> : <MissingAlert key={a.id} alert={a} />,
+            )}
           </ul>
         </section>
       </div>
 
       {open && <SectionDetail section={open} board={board} onClose={() => setOpenId(null)} />}
     </main>
+  );
+}
+
+type Problem = Extract<BoardAlert, { kind: "problem" }>;
+type Missing = Extract<BoardAlert, { kind: "missing" }>;
+
+// One report with problems: where, when, who, then each issue on its own line.
+function ProblemAlert({ alert: a }: { alert: Problem }) {
+  return (
+    <li className="rounded-2xl border border-danger/40 bg-surface p-3 text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">{a.place}</span>
+        <span className="text-xs text-muted tabular-nums">{a.time}</span>
+      </div>
+      <p className="text-xs text-muted">
+        {a.roundName} · {a.who} · {a.role === "invigilator" ? "Invigilator" : "Floor incharge"}
+      </p>
+      <ul className="mt-2 flex flex-col gap-1">
+        {a.items.map((item) => {
+          const skipped = item.startsWith("Skipped: ");
+          return (
+            <li key={item} className="flex items-start gap-2">
+              <span
+                className={`mt-0.5 shrink-0 rounded px-1.5 py-px text-[10px] font-semibold uppercase ${
+                  skipped ? "bg-danger/15 text-danger" : "bg-warn/15 text-warn"
+                }`}
+              >
+                {skipped ? "Skipped" : "Note"}
+              </span>
+              <span className="text-foreground/90">{skipped ? item.slice(9) : item}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </li>
+  );
+}
+
+// Sections that have not reported a round: a count, then the sections as tags.
+function MissingAlert({ alert: a }: { alert: Missing }) {
+  const [open, setOpen] = useState(false);
+  const SHOW = 8;
+  const shown = open ? a.sections : a.sections.slice(0, SHOW);
+  return (
+    <li className="rounded-2xl border border-danger p-3 text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">
+          <span className="text-danger">{a.sections.length}</span> not reported
+        </span>
+        <span className="text-xs text-muted tabular-nums">since {a.time}</span>
+      </div>
+      <p className="text-xs text-muted">{a.roundName}</p>
+      <ul className="mt-2 flex flex-wrap gap-1">
+        {shown.map((s) => (
+          <li key={s} className="rounded-md border border-line px-1.5 py-0.5 text-xs">
+            {s}
+          </li>
+        ))}
+      </ul>
+      {a.sections.length > SHOW && (
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="mt-2 text-xs font-medium text-muted underline underline-offset-4 hover:text-foreground"
+        >
+          {open ? "Show fewer" : `Show all ${a.sections.length}`}
+        </button>
+      )}
+    </li>
   );
 }
 

@@ -25,14 +25,20 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
   const setup = await db.getSetup();
 
   // With sign-in on, the teacher is whoever signed in; without it (sample mode) they pick their name.
+  // An admin who is not on the staff list gets a preview: the same cards, nothing saved.
   let me: Staff | null = null;
+  let preview = false;
   if (authEnabled) {
     const viewer = await getViewer(setup);
     if (!viewer) redirect(`/login?next=${encodeURIComponent(`/r/${token}`)}`);
-    if (!viewer.staff) {
+    if (viewer.staff) {
+      me = viewer.staff;
+    } else if (viewer.admin) {
+      preview = true;
+      me = { id: "preview", name: viewer.admin.name || viewer.email, email: null, role: "teacher", active: true };
+    } else {
       return <NoAccess email={viewer.email}>Your email is not on the staff list. Ask the admin to add it.</NoAccess>;
     }
-    me = viewer.staff;
   }
 
   // ?round=<round id> overrides the clock (for demos and testing)
@@ -57,6 +63,7 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
       endTime={setup.school.endTime}
       checks={setup.checks.filter((c) => c.active && c.roundId === round.id).sort((a, b) => a.sort - b.sort)}
       me={me}
+      preview={preview}
       staff={me ? [] : setup.staff.filter((s) => s.active).map((s) => ({ ...s, email: null }))}
     />
   );

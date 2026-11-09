@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Setup } from "@/lib/types";
+import { QR_THEMES, THEME_KEYS } from "@/lib/qr-themes";
 import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { SchoolForm } from "./school-form";
@@ -53,13 +54,19 @@ export function AdminApp() {
       <EntityTable
         kind="groups"
         title="Groups"
-        hint="Ways to group sections on the board, e.g. 1st Year, 2nd Year."
+        hint="Ways to group sections on the board, e.g. 1st Year, 2nd Year. QR colour is used on that group's printed room cards."
         rows={setup.groups}
         columns={[
           { key: "name", label: "Name", type: "text", wide: true },
+          {
+            key: "qrTheme",
+            label: "QR colour",
+            type: "select",
+            options: THEME_KEYS.map((k) => ({ value: k, label: QR_THEMES[k].name })),
+          },
           { key: "sort", label: "Order", type: "number" },
         ]}
-        blank={() => ({ name: "", sort: nextSort(setup.groups) })}
+        blank={() => ({ name: "", qrTheme: "midnight", sort: nextSort(setup.groups) })}
         onChanged={load}
       />
     ),
@@ -202,8 +209,9 @@ export function AdminApp() {
               { value: "coordinator", label: "Coordinator" },
             ],
           },
+          { key: "emailAlerts", label: "Alert e-mails", ...yesNo },
         ]}
-        blank={() => ({ name: "", email: "", role: "admin" })}
+        blank={() => ({ name: "", email: "", role: "admin", emailAlerts: true })}
         onChanged={load}
       />
     ),
@@ -213,7 +221,16 @@ export function AdminApp() {
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 print:block print:max-w-none print:p-0">
       <header className="flex flex-col gap-1 print:hidden">
         <p className="text-sm font-medium tracking-widest text-muted uppercase">TWELVE · Admin</p>
-        <h1 className="text-3xl font-semibold tracking-tight">{setup.school.name}</h1>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="text-3xl font-semibold tracking-tight">{setup.school.name}</h1>
+          <button
+            type="button"
+            onClick={() => setTab("School")}
+            className="min-h-8 rounded-lg border border-line px-2 text-xs font-medium text-muted hover:text-foreground"
+          >
+            Rename
+          </button>
+        </div>
         <p className={`text-xs ${setup.backend === "supabase" ? "text-accent" : "text-warn"}`}>
           {setup.backend === "supabase"
             ? "Changes are saved to Supabase"

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { qrCodeLabel, type RenewScope } from "@/lib/qr";
 import { roundsByTime } from "@/lib/setup";
 import type { Room, Setup } from "@/lib/types";
-import { QR_THEMES, QrCard, THEME_KEYS, type Paper, type ThemeKey } from "../qr-card";
+import { QR_THEMES, THEME_KEYS, type ThemeKey } from "@/lib/qr-themes";
+import { QrCard, type Paper } from "../qr-card";
 
 const ROTATE_OPTIONS = [
   { days: 0, label: "Only when I click" },
@@ -27,11 +28,9 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   const groups = [...setup.groups].sort((a, b) => a.sort - b.sort);
   const rounds = roundsByTime(setup.rounds);
   const sectionOf = (room: Room) => setup.sections.find((s) => s.roomId === room.id && s.active);
-  const themeFor = (gid: string | null | undefined): ThemeKey => {
-    if (theme !== "group") return theme;
-    const i = groups.findIndex((g) => g.id === gid);
-    return THEME_KEYS[(i < 0 ? 0 : i) % THEME_KEYS.length];
-  };
+  // each group's saved colour (Admin → Groups), unless one colour is chosen for this print
+  const themeFor = (gid: string | null | undefined): ThemeKey =>
+    theme !== "group" ? theme : (groups.find((g) => g.id === gid)?.qrTheme ?? "midnight");
   const rooms = setup.rooms
     .filter((r) => r.active && sectionOf(r))
     .filter((r) => groupId === "all" || sectionOf(r)?.groupId === groupId)
@@ -94,7 +93,7 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
           <label className="flex flex-col gap-1">
             Colour
             <select value={theme} onChange={(e) => setTheme(e.target.value as ThemeKey | "group")} className={select}>
-              <option value="group">A colour per group</option>
+              <option value="group">Each group&apos;s colour</option>
               {THEME_KEYS.map((k) => (
                 <option key={k} value={k}>
                   {QR_THEMES[k].name}

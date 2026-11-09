@@ -1,6 +1,8 @@
 // Everything here is data the school edits in the admin screen. Nothing about a
 // particular school (rooms, sections, rounds, staff, checks) is fixed in code.
 
+import type { ThemeKey } from "./qr-themes";
+
 export type Role = "invigilator" | "floor_incharge";
 export type StaffRole = "teacher" | "floor_incharge";
 export type Audience = Role | "both";
@@ -18,6 +20,7 @@ export interface School {
 export interface Group {
   id: string;
   name: string; // "1st Year"
+  qrTheme: ThemeKey; // colour of this group's printed QR cards
   sort: number;
 }
 
@@ -74,6 +77,7 @@ export interface Admin {
   name: string;
   email: string;
   role: AdminRole;
+  emailAlerts: boolean; // receives alert e-mails
 }
 
 export interface Setup {

@@ -3,6 +3,7 @@
 // Without Supabase keys (local sample mode) there is no sign-in and the app is
 // open, for demos on a developer's laptop only.
 import "server-only";
+import { cache } from "react";
 import { getBackend } from "./data";
 import { createAuthClient, hasSupabase } from "./supabase/server";
 import type { Admin, Setup, Staff } from "./types";
@@ -23,11 +24,18 @@ export function lookupEmail(setup: Setup, email: string) {
   };
 }
 
+// The signed-in email, checked once per page. getClaims verifies the session
+// token locally when Supabase uses signing keys, without a network round trip.
+const signedInEmail = cache(async (): Promise<string | null> => {
+  const supabase = await createAuthClient();
+  const { data } = await supabase.auth.getClaims();
+  const email = data?.claims?.email;
+  return typeof email === "string" && email ? email.toLowerCase() : null;
+});
+
 export async function getViewer(setup?: Setup): Promise<Viewer | null> {
   if (!authEnabled) return null;
-  const supabase = await createAuthClient();
-  const { data } = await supabase.auth.getUser();
-  const email = data.user?.email?.toLowerCase();
+  const email = await signedInEmail();
   if (!email) return null;
   return { email, ...lookupEmail(setup ?? (await (await getBackend()).getSetup()), email) };
 }
