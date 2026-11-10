@@ -2,31 +2,55 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Setup } from "@/lib/types";
-import { QR_THEMES, THEME_KEYS } from "@/lib/qr-themes";
 import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
+import { RoomsManager } from "./rooms-manager";
 import { SchoolForm } from "./school-form";
 import { SectionsManager } from "./sections-manager";
-import { RoomsManager } from "./rooms-manager";
 import { StaffManager } from "./staff-manager";
+import { TestManager } from "./test-manager";
+import { SubTabs } from "./tile-kit";
 
-const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "Admins", "QR codes"] as const;
+// Five tabs: Classes (groups, sections, rooms), Test (rounds and their
+// checks), People (staff and admins), QR codes, Settings (school).
+const TABS = ["Classes", "Test", "People", "QR codes", "Settings"] as const;
 type Tab = (typeof TABS)[number];
-const tabSlug = (t: Tab) => t.toLowerCase().replaceAll(" ", "-");
+const CLASS_VIEWS = ["Sections", "Rooms"] as const;
+const PEOPLE_VIEWS = ["Staff", "Admins"] as const;
+type View = (typeof CLASS_VIEWS)[number] | (typeof PEOPLE_VIEWS)[number] | null;
 
-const yesNo = { type: "bool" } as const;
+// /admin#rooms, #qr-codes … (old links to the earlier tabs still land in the right place)
+const LINKS: Record<string, [Tab, View]> = {
+  classes: ["Classes", "Sections"],
+  sections: ["Classes", "Sections"],
+  groups: ["Classes", "Sections"],
+  rooms: ["Classes", "Rooms"],
+  test: ["Test", null],
+  rounds: ["Test", null],
+  checks: ["Test", null],
+  people: ["People", "Staff"],
+  staff: ["People", "Staff"],
+  admins: ["People", "Admins"],
+  "qr-codes": ["QR codes", null],
+  settings: ["Settings", null],
+  school: ["Settings", null],
+};
+const slugOf = (tab: Tab, view: View) =>
+  Object.entries(LINKS).find(([, [t, v]]) => t === tab && v === view)?.[0] ?? "classes";
 
 export function AdminApp() {
   const [setup, setSetup] = useState<(Setup & { backend?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // the tab can be linked to, e.g. /admin#qr-codes (the server renders "Loading…" either way)
-  const [tab, setTabState] = useState<Tab>(() => {
+  // the server renders "Loading…" either way, so reading the hash here is safe
+  const [place, setPlace] = useState<[Tab, View]>(() => {
     const hash = typeof window === "undefined" ? "" : window.location.hash.slice(1);
-    return TABS.find((t) => tabSlug(t) === hash) ?? "Sections";
+    return LINKS[hash] ?? ["Classes", "Sections"];
   });
-  const setTab = (t: Tab) => {
-    setTabState(t);
-    window.history.replaceState(null, "", `#${tabSlug(t)}`);
+  const [tab, view] = place;
+  const go = (t: Tab, v: View = null) => {
+    const next: [Tab, View] = [t, v ?? (t === "Classes" ? "Sections" : t === "People" ? "Staff" : null)];
+    setPlace(next);
+    window.history.replaceState(null, "", `#${slugOf(...next)}`);
   };
 
   const load = useCallback(async () => {
@@ -45,120 +69,31 @@ export function AdminApp() {
     return <main className="flex min-h-dvh items-center justify-center text-muted">{error ?? "Loading…"}</main>;
   }
 
-  const roundOptions = setup.rounds.map((r) => ({ value: r.id, label: r.name }));
-  const nextSort = (rows: { sort: number }[]) => Math.max(0, ...rows.map((r) => r.sort)) + 1;
-
-  const tables: Record<Exclude<Tab, "School" | "QR codes">, React.ReactNode> = {
-    Groups: (
-      <EntityTable
-        kind="groups"
-        title="Groups"
-        hint="Ways to group sections on the board, e.g. 1st Year, 2nd Year. QR colour is used on that group's printed room cards."
-        rows={setup.groups}
-        columns={[
-          { key: "name", label: "Name", type: "text", wide: true },
-          {
-            key: "qrTheme",
-            label: "QR colour",
-            type: "select",
-            options: THEME_KEYS.map((k) => ({ value: k, label: QR_THEMES[k].name })),
-          },
-          { key: "sort", label: "Order", type: "number" },
-        ]}
-        blank={() => ({ name: "", qrTheme: "midnight", sort: nextSort(setup.groups) })}
-        onChanged={load}
-      />
-    ),
-    Rooms: <RoomsManager setup={setup} onChanged={load} />,
-    Sections: <SectionsManager setup={setup} onChanged={load} />,
-    Rounds: (
-      <EntityTable
-        kind="rounds"
-        title="Rounds"
-        hint="Times in the test when teachers scan and check. Add as many as you need."
-        rows={setup.rounds}
-        columns={[
-          { key: "name", label: "Name", type: "text", wide: true },
-          { key: "startTime", label: "Starts", type: "time" },
-          {
-            key: "countsKind",
-            label: "Last step",
-            type: "select",
-            options: [
-              { value: "none", label: "Nothing" },
-              { value: "attendance", label: "Count students" },
-              { value: "non_attempting", label: "Non-attempting students" },
-            ],
-          },
-          { key: "sort", label: "Order", type: "number" },
-        ]}
-        blank={() => ({ name: "", startTime: "08:00", countsKind: "none", sort: nextSort(setup.rounds) })}
-        onChanged={load}
-      />
-    ),
-    Checks: (
-      <EntityTable
-        kind="checks"
-        title="Checks"
-        hint="One card per check. Deleting a round deletes its checks."
-        rows={setup.checks}
-        columns={[
-          { key: "question", label: "Question", type: "text", wide: true },
-          { key: "instruction", label: "Instruction", type: "text", wide: true },
-          { key: "roundId", label: "Round", type: "select", options: roundOptions },
-          {
-            key: "audience",
-            label: "Who sees it",
-            type: "select",
-            options: [
-              { value: "both", label: "Everyone" },
-              { value: "invigilator", label: "Invigilator" },
-              { value: "floor_incharge", label: "Floor incharge" },
-            ],
-          },
-          { key: "minSeconds", label: "Wait (s)", type: "number" },
-          { key: "active", label: "Active", ...yesNo },
-          { key: "sort", label: "Order", type: "number" },
-        ]}
-        blank={() => ({
-          question: "",
-          instruction: "",
-          roundId: setup.rounds[0]?.id ?? "",
-          audience: "both",
-          minSeconds: 8,
-          active: true,
-          sort: nextSort(setup.checks),
-        })}
-        onChanged={load}
-      />
-    ),
-    Staff: <StaffManager setup={setup} onChanged={load} />,
-    Admins: (
-      <EntityTable
-        kind="admins"
-        title="Admins"
-        hint="Who can sign in to the board and this screen. Owner and Admin can change everything; Coordinator sees the board only."
-        rows={setup.admins}
-        columns={[
-          { key: "name", label: "Name", type: "text", wide: true },
-          { key: "email", label: "Sign-in email", type: "text", wide: true },
-          {
-            key: "role",
-            label: "Role",
-            type: "select",
-            options: [
-              { value: "owner", label: "Owner" },
-              { value: "admin", label: "Admin" },
-              { value: "coordinator", label: "Coordinator" },
-            ],
-          },
-          { key: "emailAlerts", label: "Alert e-mails", ...yesNo },
-        ]}
-        blank={() => ({ name: "", email: "", role: "admin", emailAlerts: true })}
-        onChanged={load}
-      />
-    ),
-  };
+  const admins = (
+    <EntityTable
+      kind="admins"
+      title="Admins"
+      hint="Who can sign in to the board and this screen. Owner and Admin can change everything; Coordinator sees the board only."
+      rows={setup.admins}
+      columns={[
+        { key: "name", label: "Name", type: "text", wide: true },
+        { key: "email", label: "Sign-in email", type: "text", wide: true },
+        {
+          key: "role",
+          label: "Role",
+          type: "select",
+          options: [
+            { value: "owner", label: "Owner" },
+            { value: "admin", label: "Admin" },
+            { value: "coordinator", label: "Coordinator" },
+          ],
+        },
+        { key: "emailAlerts", label: "Alert e-mails", type: "bool" },
+      ]}
+      blank={() => ({ name: "", email: "", role: "admin", emailAlerts: true })}
+      onChanged={load}
+    />
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 print:block print:max-w-none print:p-0">
@@ -168,7 +103,7 @@ export function AdminApp() {
           <h1 className="text-3xl font-semibold tracking-tight">{setup.school.name}</h1>
           <button
             type="button"
-            onClick={() => setTab("School")}
+            onClick={() => go("Settings")}
             className="min-h-8 rounded-lg border border-line px-2 text-xs font-medium text-muted hover:text-foreground"
           >
             Rename
@@ -188,7 +123,7 @@ export function AdminApp() {
             type="button"
             role="tab"
             aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            onClick={() => go(t)}
             className={`min-h-9 shrink-0 rounded-lg px-3 font-medium ${tab === t ? "bg-foreground text-background" : "text-muted"}`}
           >
             {t}
@@ -198,9 +133,21 @@ export function AdminApp() {
 
       {error && <p className="text-sm text-danger print:hidden">{error}</p>}
 
-      {tab === "School" && <SchoolForm school={setup.school} onSaved={load} />}
+      {tab === "Classes" && (
+        <>
+          <SubTabs options={CLASS_VIEWS} value={view as (typeof CLASS_VIEWS)[number]} onChange={(v) => go("Classes", v)} />
+          {view === "Rooms" ? <RoomsManager setup={setup} onChanged={load} /> : <SectionsManager setup={setup} onChanged={load} />}
+        </>
+      )}
+      {tab === "Test" && <TestManager setup={setup} onChanged={load} />}
+      {tab === "People" && (
+        <>
+          <SubTabs options={PEOPLE_VIEWS} value={view as (typeof PEOPLE_VIEWS)[number]} onChange={(v) => go("People", v)} />
+          {view === "Admins" ? admins : <StaffManager setup={setup} onChanged={load} />}
+        </>
+      )}
       {tab === "QR codes" && <QrCodes setup={setup} onChanged={load} />}
-      {tab !== "School" && tab !== "QR codes" && tables[tab]}
+      {tab === "Settings" && <SchoolForm school={setup.school} onSaved={load} />}
     </main>
   );
 }

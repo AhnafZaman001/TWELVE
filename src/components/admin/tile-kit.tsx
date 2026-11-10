@@ -11,7 +11,11 @@ export const field = "min-h-10 w-full rounded-lg border border-line bg-surface p
 
 export type SaveResult = { ok: boolean; error?: string; row?: { id: string } };
 
-export async function saveRow(kind: EntityKind, body: object): Promise<SaveResult> {
+export async function saveRow(kind: EntityKind, body: Record<string, unknown>): Promise<SaveResult> {
+  if (!body.id) {
+    body = { ...body };
+    delete body.id; // a new row: the server makes the id
+  }
   const res = await fetch(`/api/admin/${kind}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -37,6 +41,7 @@ export function ListHeader(props: {
   addLabel: string;
   adding: boolean;
   onAdd: () => void;
+  extra?: React.ReactNode; // more buttons before the add button
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -52,6 +57,7 @@ export function ListHeader(props: {
           aria-label={props.searchLabel}
           className="min-h-10 w-48 rounded-xl border border-line bg-surface px-3 text-sm"
         />
+        {props.extra}
         <button
           type="button"
           onClick={props.onAdd}
@@ -77,24 +83,30 @@ export function TileBlock(props: {
   empty?: string;
   startClosed?: boolean;
   forceOpen?: boolean;
+  action?: React.ReactNode; // e.g. an Edit button in the header
+  children?: React.ReactNode; // shown above the tiles, e.g. the block's own editor
 }) {
   const [closed, setClosed] = useState(Boolean(props.startClosed));
   const isClosed = closed && !props.forceOpen;
   return (
     <div className="rounded-2xl border border-line">
-      <button
-        type="button"
-        onClick={() => setClosed((c) => !c)}
-        aria-expanded={!isClosed}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-      >
-        <span className="font-semibold">
-          {props.name} <span className="font-normal text-muted">· {props.count}</span>
-        </span>
-        <span className="text-sm text-muted">{isClosed ? "Show" : "Hide"}</span>
-      </button>
+      <div className="flex items-center gap-2 pr-3">
+        <button
+          type="button"
+          onClick={() => setClosed((c) => !c)}
+          aria-expanded={!isClosed}
+          className="flex flex-1 items-center justify-between gap-3 py-3 pl-4 text-left"
+        >
+          <span className="font-semibold">
+            {props.name} <span className="font-normal text-muted">· {props.count}</span>
+          </span>
+          <span className="text-sm text-muted">{isClosed ? "Show" : "Hide"}</span>
+        </button>
+        {props.action}
+      </div>
       {!isClosed && (
         <div className="border-t border-line p-3">
+          {props.children}
           {props.items.length === 0 ? (
             <p className="px-1 text-sm text-muted">{props.empty ?? "Nothing here yet."}</p>
           ) : (
@@ -130,7 +142,8 @@ export function EditorFrame(props: {
   busy: boolean;
   onSave: () => void;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete?: () => void; // left out for a new row
+  saveLabel?: string;
 }) {
   return (
     <div className="mt-3 flex flex-col gap-3 rounded-xl border border-accent/40 p-3 text-sm">
@@ -143,19 +156,21 @@ export function EditorFrame(props: {
           onClick={props.onSave}
           className="min-h-9 rounded-lg bg-accent px-4 font-semibold text-accent-ink disabled:opacity-50"
         >
-          Save
+          {props.saveLabel ?? "Save"}
         </button>
         <button type="button" onClick={props.onClose} className="min-h-9 rounded-lg px-3 text-muted">
-          Close
+          {props.onDelete ? "Close" : "Cancel"}
         </button>
-        <button
-          type="button"
-          disabled={props.busy}
-          onClick={props.onDelete}
-          className="ml-auto min-h-9 rounded-lg px-3 text-danger"
-        >
-          Delete
-        </button>
+        {props.onDelete && (
+          <button
+            type="button"
+            disabled={props.busy}
+            onClick={props.onDelete}
+            className="ml-auto min-h-9 rounded-lg px-3 text-danger"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );
@@ -194,5 +209,40 @@ export function LineChip(props: { title: string; note: string; problem?: boolean
       <span className="font-semibold">{props.title}</span>
       <span className={props.problem ? "" : "text-muted"}> {props.note}</span>
     </li>
+  );
+}
+
+// A small Edit button for a block header.
+export function HeaderButton(props: { label: string; onClick: () => void; active?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      className={`min-h-8 shrink-0 rounded-lg border px-2 text-xs font-medium ${
+        props.active ? "border-accent text-accent" : "border-line text-muted hover:text-foreground"
+      }`}
+    >
+      {props.label}
+    </button>
+  );
+}
+
+// Two or three views inside one tab, e.g. Sections | Rooms.
+export function SubTabs<T extends string>(props: { options: readonly T[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="flex w-fit gap-1 rounded-xl border border-line p-1 text-sm" role="tablist">
+      {props.options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          role="tab"
+          aria-selected={props.value === o}
+          onClick={() => props.onChange(o)}
+          className={`min-h-8 rounded-lg px-3 font-medium ${props.value === o ? "bg-surface text-foreground ring-1 ring-line" : "text-muted"}`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
   );
 }

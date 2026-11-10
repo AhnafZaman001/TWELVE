@@ -1,4 +1,4 @@
-{
+﻿{
   "version": "0.0.1",
   "configurations": [
     {
@@ -10,8 +10,9 @@
     {
       "name": "twelve-sample",
       "runtimeExecutable": "C:/Program Files/Git/bin/bash.exe",
-      "runtimeArgs": ["-c", "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= SUPABASE_SERVICE_ROLE_KEY= npx next dev -p 3100"],
+      "runtimeArgs": ["-c", "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= SUPABASE_SERVICE_ROLE_KEY= npx next dev -p ${PORT:-3100}"],
       "port": 3100
     }
   ]
 }
+

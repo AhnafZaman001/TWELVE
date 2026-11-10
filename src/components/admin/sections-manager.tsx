@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { Room, Section, Setup } from "@/lib/types";
-import { EditorFrame, LineChip, ListHeader, TileBlock, byName, field, saveRow, useEditor } from "./tile-kit";
+import { QR_THEMES, THEME_KEYS } from "@/lib/qr-themes";
+import type { Group, Room, Section, Setup } from "@/lib/types";
+import { EditorFrame, HeaderButton, LineChip, ListHeader, TileBlock, byName, field, saveRow, useEditor } from "./tile-kit";
 
-// Sections shown as small tiles under their group. Click a tile to edit it;
+// Sections shown as small tiles under their group (1st Year, 2nd Year…).
+// Groups are edited from their own heading. Click a tile to edit a section;
 // "Add sections" takes many at once.
 export function SectionsManager(props: { setup: Setup; onChanged: () => void }) {
   const { setup } = props;
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [groupEdit, setGroupEdit] = useState<string | null>(null); // a group id, or "new"
 
   const roomOf = (s: Section) => setup.rooms.find((r) => r.id === s.roomId);
   const q = query.trim().toLowerCase();
@@ -25,19 +28,33 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
   const withoutRoom = sections.filter((s) => s.active && !roomOf(s)).length;
   const changed = () => {
     setOpenId(null);
+    setGroupEdit(null);
     props.onChanged();
   };
+  const groupEditor = (g: Group) => (
+    <EditGroup key={g.id || "new"} group={g} setup={setup} onClose={() => setGroupEdit(null)} onChanged={changed} />
+  );
+  const blankGroup: Group = { id: "", name: "", qrTheme: "midnight", sort: Math.max(0, ...groups.map((g) => g.sort)) + 1 };
 
   return (
     <section className="flex flex-col gap-4">
       <ListHeader
-        title="Sections"
+        title="Classes"
         summary={
           <>
-            {sections.length} sections
+            {groups.length} groups · {sections.length} sections
             {withoutRoom > 0 && <span className="text-warn"> · {withoutRoom} not in a room yet</span>}. Click a section to
-            change its name, group or room.
+            change it, or Edit on a group to rename it or set its QR colour.
           </>
+        }
+        extra={
+          <button
+            type="button"
+            onClick={() => setGroupEdit(groupEdit === "new" ? null : "new")}
+            className="min-h-10 rounded-xl border border-line px-4 text-sm font-semibold hover:border-foreground"
+          >
+            {groupEdit === "new" ? "Close" : "Add group"}
+          </button>
         }
         query={query}
         onQuery={setQuery}
@@ -57,6 +74,8 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
         />
       )}
 
+      {groupEdit === "new" && <div className="rounded-2xl border border-line p-3">{groupEditor(blankGroup)}</div>}
+
       {blocks.map((block) => {
         const rows = block.rows.filter(matches);
         if (q && rows.length === 0) return null;
@@ -70,6 +89,15 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
             openId={openId}
             onOpen={setOpenId}
             empty="No sections in this group yet."
+            action={
+              block.key !== "none" && (
+                <HeaderButton
+                  label="Edit"
+                  active={groupEdit === block.key}
+                  onClick={() => setGroupEdit(groupEdit === block.key ? null : block.key)}
+                />
+              )
+            }
             items={rows.map((s) => {
               const room = roomOf(s);
               return {
@@ -81,10 +109,64 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
               };
             })}
             editor={open && <EditSection key={open.id} section={open} setup={setup} onClose={() => setOpenId(null)} onChanged={changed} />}
-          />
+          >
+            {groupEdit === block.key && groups.find((g) => g.id === block.key) && (
+              <div className="mb-3">{groupEditor(groups.find((g) => g.id === block.key)!)}</div>
+            )}
+          </TileBlock>
         );
       })}
     </section>
+  );
+}
+
+function EditGroup(props: { group: Group; setup: Setup; onClose: () => void; onChanged: () => void }) {
+  const ed = useEditor("groups", props.group, props.onChanged);
+  const { draft, set } = ed;
+  const isNew = !props.group.id;
+  const count = props.setup.sections.filter((s) => s.groupId === props.group.id).length;
+  return (
+    <EditorFrame
+      error={ed.error}
+      busy={ed.busy}
+      onSave={ed.save}
+      saveLabel={isNew ? "Add group" : "Save group"}
+      onClose={props.onClose}
+      onDelete={
+        isNew
+          ? undefined
+          : () =>
+              ed.remove(
+                `Delete group “${props.group.name}”?${count ? ` Its ${count} sections stay, under “No group”.` : ""}`,
+              )
+      }
+    >
+      <div className="grid gap-3 sm:grid-cols-[3fr_2fr_1fr]">
+        <label className="flex flex-col gap-1">
+          Group name
+          <input
+            value={draft.name}
+            onChange={(e) => set("name", e.target.value)}
+            placeholder="e.g. 1st Year"
+            className={field}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          QR card colour
+          <select value={draft.qrTheme} onChange={(e) => set("qrTheme", e.target.value as Group["qrTheme"])} className={field}>
+            {THEME_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {QR_THEMES[k].name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          Order
+          <input type="number" value={draft.sort} onChange={(e) => set("sort", Number(e.target.value) || 0)} className={field} />
+        </label>
+      </div>
+    </EditorFrame>
   );
 }
 
