@@ -22,4 +22,5 @@ export interface Backend {
   clearReports(dateKey: string): Promise<void>;
   // true the first time a given alert is logged for a day; false if already sent
   logAlertOnce(dateKey: string, kind: string): Promise<boolean>;
+  forgetAlert(dateKey: string, kind: string): Promise<void>; // the e-mail failed: let the next try send it
 }

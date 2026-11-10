@@ -1,9 +1,8 @@
 // Runs right after any sign-in (Google, password or e-mail code):
 // only listed emails may stay signed in, and an admin's sign-in is e-mailed.
-// The e-mail goes out after the response, so sign-in stays fast, and at most
-// once per sign-in session, so calling this again cannot flood anyone's inbox.
+// The e-mail is sent before the answer goes back (a fraction of a second), at
+// most once per sign-in session; if sending fails, the next sign-in tries again.
 import "server-only";
-import { after } from "next/server";
 import { emailSignIn, type SignInMethod } from "./alerts";
 import { lookupEmail } from "./auth";
 import { getBackend } from "./data";
@@ -20,19 +19,28 @@ export async function checkSignIn(
 
   const admin = who.admin;
   if (admin && signedIn.sessionId) {
-    const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
-    const userAgent = request.headers.get("user-agent") ?? "";
     const { dateKey } = localParts(new Date(), setup.school.timezone);
-    after(async () => {
-      if (!(await db.logAlertOnce(dateKey, `signin:${signedIn.sessionId}`))) return;
-      const out = await emailSignIn(
-        setup,
-        { email: admin.email, name: admin.name, role: admin.role },
-        signedIn.method,
-        { ip, userAgent },
-      );
-      if (!out.sent) console.warn("Sign-in e-mail not sent:", out.reason);
-    });
+    const kind = `signin:${signedIn.sessionId}`;
+    try {
+      if (await db.logAlertOnce(dateKey, kind)) {
+        const out = await emailSignIn(
+          setup,
+          { email: admin.email, name: admin.name, role: admin.role },
+          signedIn.method,
+          {
+            ip: (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim(),
+            userAgent: request.headers.get("user-agent") ?? "",
+          },
+        );
+        if (!out.sent) {
+          console.error("Sign-in e-mail not sent:", out.reason);
+          await db.forgetAlert(dateKey, kind);
+        }
+      }
+    } catch (e) {
+      // an e-mail problem must never block signing in
+      console.error("Sign-in e-mail failed:", e instanceof Error ? e.message : e);
+    }
   }
   return { allowed: true as const };
 }

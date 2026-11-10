@@ -10,6 +10,7 @@ import { RoomsManager } from "./rooms-manager";
 import { SchoolForm } from "./school-form";
 import { SectionsManager } from "./sections-manager";
 import { StaffManager } from "./staff-manager";
+import { TestEmail } from "./test-email";
 import { TestManager } from "./test-manager";
 import { SubTabs } from "./tile-kit";
 
@@ -108,6 +109,7 @@ export function AdminApp(props: { passwordSignIn?: boolean }) {
       {tab === "Settings" && (
         <>
           <SchoolForm school={setup.school} onSaved={load} />
+          <TestEmail />
           {props.passwordSignIn && <AccountPassword />}
         </>
       )}

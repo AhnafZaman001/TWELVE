@@ -77,6 +77,10 @@ export const memoryBackend: Backend = {
     state.reports = state.reports.filter((r) => dayOf(r) !== dateKey);
   },
 
+  async forgetAlert(dateKey, kind) {
+    state.alerts?.delete(`${dateKey}|${kind}`);
+  },
+
   async logAlertOnce(dateKey, kind) {
     const key = `${dateKey}|${kind}`;
     const sent = (state.alerts ??= new Set());

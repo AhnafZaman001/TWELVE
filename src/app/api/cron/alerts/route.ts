@@ -28,7 +28,11 @@ export async function GET() {
         .map((s) => `${s.roomCode} · ${s.name}`);
       if (missing.length === 0) continue;
       if (!(await db.logAlertOnce(dateKey, `missing:${round.id}`))) continue;
-      await emailMissingReports(setup, round.name, round.deadline, missing);
+      const out = await emailMissingReports(setup, round.name, round.deadline, missing);
+      if (!out.sent) {
+        await db.forgetAlert(dateKey, `missing:${round.id}`); // try again on the next run
+        continue;
+      }
       sent.push(round.name);
     }
   }

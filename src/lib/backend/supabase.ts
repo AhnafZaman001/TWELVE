@@ -360,6 +360,11 @@ export function supabaseBackendFor(slug?: string): Backend {
       throw new Error(`Alert log: ${error.message}`);
     },
 
+    async forgetAlert(dateKey, kind) {
+      const s = await school();
+      await supabase.from("alert_log").delete().eq("school_id", s.id).eq("local_date", dateKey).eq("kind", kind);
+    },
+
     async clearReports(dateKey) {
       const s = await school();
       const { error } = await supabase.from("reports").delete().eq("school_id", s.id).eq("local_date", dateKey);

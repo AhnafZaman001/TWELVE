@@ -13,8 +13,11 @@ export async function sendEmail(msg: { to: string[]; subject: string; html: stri
     body: JSON.stringify({ from: FROM, to: msg.to, subject: msg.subject, html: msg.html, text: msg.text }),
   });
   if (!res.ok) {
-    console.error("Resend:", res.status, await res.text().catch(() => ""));
-    return { sent: false, reason: `Resend ${res.status}` };
+    // Resend explains the problem in "message", e.g. a domain that is not verified
+    const body = await res.json().catch(() => null);
+    const reason = `Resend ${res.status}${body?.message ? `: ${body.message}` : ""}`;
+    console.error("E-mail not sent:", reason);
+    return { sent: false, reason };
   }
-  return { sent: true };
+  return { sent: true, reason: null };
 }
