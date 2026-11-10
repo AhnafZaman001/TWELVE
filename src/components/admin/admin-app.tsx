@@ -6,6 +6,7 @@ import { QR_THEMES, THEME_KEYS } from "@/lib/qr-themes";
 import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { SchoolForm } from "./school-form";
+import { SectionsManager } from "./sections-manager";
 import { StaffImport } from "./staff-import";
 
 const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "Admins", "QR codes"] as const;
@@ -43,9 +44,6 @@ export function AdminApp() {
     return <main className="flex min-h-dvh items-center justify-center text-muted">{error ?? "Loading…"}</main>;
   }
 
-  const none = { value: "", label: "—" };
-  const groupOptions = [none, ...setup.groups.map((g) => ({ value: g.id, label: g.name }))];
-  const roomOptions = [none, ...setup.rooms.map((r) => ({ value: r.id, label: r.code }))];
   const roundOptions = setup.rounds.map((r) => ({ value: r.id, label: r.name }));
   const nextSort = (rows: { sort: number }[]) => Math.max(0, ...rows.map((r) => r.sort)) + 1;
 
@@ -85,23 +83,7 @@ export function AdminApp() {
         onChanged={load}
       />
     ),
-    Sections: (
-      <EntityTable
-        kind="sections"
-        title="Sections"
-        hint="Classes taking the test. Put a section in a room to make that room report. One active section per room."
-        rows={setup.sections}
-        columns={[
-          { key: "name", label: "Section", type: "text", wide: true },
-          { key: "groupId", label: "Group", type: "select", options: groupOptions },
-          { key: "roomId", label: "Room", type: "select", options: roomOptions },
-          { key: "active", label: "Active", ...yesNo },
-          { key: "sort", label: "Order", type: "number" },
-        ]}
-        blank={() => ({ name: "", groupId: null, roomId: null, active: true, sort: nextSort(setup.sections) })}
-        onChanged={load}
-      />
-    ),
+    Sections: <SectionsManager setup={setup} onChanged={load} />,
     Rounds: (
       <EntityTable
         kind="rounds"
