@@ -51,6 +51,7 @@ export function CheckFlow(props: {
   checks: Check[];
   me: Staff | null; // signed-in staff member; null in sample mode, where they pick their name
   preview?: boolean; // an admin trying the flow: nothing is saved
+  tryRounds?: Round[]; // for admins trying it: switch round and go back to the QR codes
   staff: Staff[];
 }) {
   const { room, section, round, nextRound, me } = props;
@@ -127,10 +128,29 @@ export function CheckFlow(props: {
           Room {roomLabel(room, section)} · {round.name}
         </span>
       </header>
-      {props.preview && (
-        <p className="mt-3 rounded-xl border border-warn/50 px-3 py-2 text-center text-xs text-warn">
-          Preview for admins · answers are checked but nothing is saved
-        </p>
+      {props.tryRounds && (
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-warn/50 px-3 py-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <a href="/admin#qr-codes" className="font-medium text-foreground underline underline-offset-4">
+              ← Back to QR codes
+            </a>
+            <span className="text-warn">{props.preview ? "Preview · nothing is saved" : "Sample data"}</span>
+          </div>
+          {props.tryRounds.length > 1 && (
+            <nav aria-label="Round" className="flex flex-wrap gap-1">
+              {props.tryRounds.map((r) => (
+                <a
+                  key={r.id}
+                  href={`?round=${r.id}`}
+                  aria-current={r.id === round.id ? "page" : undefined}
+                  className={`rounded-lg px-2 py-1 ${r.id === round.id ? "bg-foreground text-background" : "text-muted hover:text-foreground"}`}
+                >
+                  {r.name}
+                </a>
+              ))}
+            </nav>
+          )}
+        </div>
       )}
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line" aria-hidden>
         <div

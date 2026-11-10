@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { hashFor, onHashChange, placeFromHash, type AdminTab, type AdminView } from "@/lib/admin-tabs";
 import type { Setup } from "@/lib/types";
+import { AccountPassword } from "./account-password";
 import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { RoomsManager } from "./rooms-manager";
@@ -11,46 +13,20 @@ import { StaffManager } from "./staff-manager";
 import { TestManager } from "./test-manager";
 import { SubTabs } from "./tile-kit";
 
-// Five tabs: Classes (groups, sections, rooms), Test (rounds and their
-// checks), People (staff and admins), QR codes, Settings (school).
-const TABS = ["Classes", "Test", "People", "QR codes", "Settings"] as const;
-type Tab = (typeof TABS)[number];
+// The tabs live in the top bar (AppNav); this screen shows the one named in
+// the address, e.g. /admin#test. Classes = groups, sections and rooms;
+// Test = rounds and their checks; People = staff and admins.
 const CLASS_VIEWS = ["Sections", "Rooms"] as const;
 const PEOPLE_VIEWS = ["Staff", "Admins"] as const;
-type View = (typeof CLASS_VIEWS)[number] | (typeof PEOPLE_VIEWS)[number] | null;
 
-// /admin#rooms, #qr-codes … (old links to the earlier tabs still land in the right place)
-const LINKS: Record<string, [Tab, View]> = {
-  classes: ["Classes", "Sections"],
-  sections: ["Classes", "Sections"],
-  groups: ["Classes", "Sections"],
-  rooms: ["Classes", "Rooms"],
-  test: ["Test", null],
-  rounds: ["Test", null],
-  checks: ["Test", null],
-  people: ["People", "Staff"],
-  staff: ["People", "Staff"],
-  admins: ["People", "Admins"],
-  "qr-codes": ["QR codes", null],
-  settings: ["Settings", null],
-  school: ["Settings", null],
-};
-const slugOf = (tab: Tab, view: View) =>
-  Object.entries(LINKS).find(([, [t, v]]) => t === tab && v === view)?.[0] ?? "classes";
-
-export function AdminApp() {
+export function AdminApp(props: { passwordSignIn?: boolean }) {
   const [setup, setSetup] = useState<(Setup & { backend?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // the server renders "Loading…" either way, so reading the hash here is safe
-  const [place, setPlace] = useState<[Tab, View]>(() => {
-    const hash = typeof window === "undefined" ? "" : window.location.hash.slice(1);
-    return LINKS[hash] ?? ["Classes", "Sections"];
-  });
-  const [tab, view] = place;
-  const go = (t: Tab, v: View = null) => {
-    const next: [Tab, View] = [t, v ?? (t === "Classes" ? "Sections" : t === "People" ? "Staff" : null)];
-    setPlace(next);
-    window.history.replaceState(null, "", `#${slugOf(...next)}`);
+  const hash = useSyncExternalStore(onHashChange, () => window.location.hash, () => "");
+  const [tab, view] = placeFromHash(hash);
+  // a real address change, so the browser's Back button returns to the last tab
+  const go = (t: AdminTab, v: AdminView = null) => {
+    window.location.hash = hashFor(t, v);
   };
 
   const load = useCallback(async () => {
@@ -97,39 +73,21 @@ export function AdminApp() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 print:block print:max-w-none print:p-0">
-      <header className="flex flex-col gap-1 print:hidden">
-        <p className="text-sm font-medium tracking-widest text-muted uppercase">TWELVE · Admin</p>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{setup.school.name}</h1>
-          <button
-            type="button"
-            onClick={() => go("Settings")}
-            className="min-h-8 rounded-lg border border-line px-2 text-xs font-medium text-muted hover:text-foreground"
-          >
-            Rename
-          </button>
-        </div>
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 print:hidden">
+        <h1 className="text-2xl font-semibold tracking-tight">{setup.school.name}</h1>
+        <button
+          type="button"
+          onClick={() => go("Settings")}
+          className="min-h-8 rounded-lg border border-line px-2 text-xs font-medium text-muted hover:text-foreground"
+        >
+          Rename
+        </button>
         <p className={`text-xs ${setup.backend === "supabase" ? "text-accent" : "text-warn"}`}>
           {setup.backend === "supabase"
             ? "Changes are saved to Supabase"
             : "Sample data · changes reset when the server restarts"}
         </p>
       </header>
-
-      <nav className="flex gap-1 overflow-x-auto rounded-xl border border-line p-1 text-sm print:hidden" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => go(t)}
-            className={`min-h-9 shrink-0 rounded-lg px-3 font-medium ${tab === t ? "bg-foreground text-background" : "text-muted"}`}
-          >
-            {t}
-          </button>
-        ))}
-      </nav>
 
       {error && <p className="text-sm text-danger print:hidden">{error}</p>}
 
@@ -147,7 +105,12 @@ export function AdminApp() {
         </>
       )}
       {tab === "QR codes" && <QrCodes setup={setup} onChanged={load} />}
-      {tab === "Settings" && <SchoolForm school={setup.school} onSaved={load} />}
+      {tab === "Settings" && (
+        <>
+          <SchoolForm school={setup.school} onSaved={load} />
+          {props.passwordSignIn && <AccountPassword />}
+        </>
+      )}
     </main>
   );
 }

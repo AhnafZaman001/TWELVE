@@ -73,7 +73,9 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
         <div>
           <h2 className="text-xl font-semibold">QR codes</h2>
           <p className="text-sm text-muted">
-            One card per room with a section, in its group&apos;s colour (set in Groups). In the print window, choose A4 and turn on “Background graphics”.
+            One card per room with a section, in its group&apos;s colour (set with Edit on the group in Classes). “Try it” shows what a
+            teacher sees after scanning, without saving anything. In the print window, choose A4 and turn on “Background
+            graphics”.
           </p>
         </div>
 
@@ -168,8 +170,15 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
                 theme={themeFor(section?.groupId)}
                 paper={paper}
               />
-              <div className="flex items-center justify-between text-xs text-muted print:hidden">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted print:hidden">
                 <span>Issued {issued(room.qrIssuedAt)}</span>
+                <a
+                  href={`/r/${room.token}`}
+                  className="ml-auto min-h-9 content-center rounded-lg px-2 font-medium text-foreground hover:text-accent"
+                  title="See what a teacher sees after scanning this card. Nothing is saved."
+                >
+                  Try it
+                </a>
                 <button
                   type="button"
                   disabled={busy}

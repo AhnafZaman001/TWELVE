@@ -9,16 +9,54 @@ const ERRORS: Record<string, string> = {
   failed: "Sign-in did not finish. Please try again.",
 };
 
+type Mode = "password" | "code";
+
+// Three ways in: email + password (set one in Settings), Google, or a
+// 6-digit code by e-mail. Every way ends with the same server check
+// (/api/auth/after-sign-in): unlisted emails are signed out again, and an
+// admin's sign-in is e-mailed.
 export function LoginForm() {
   const params = useSearchParams();
   const router = useRouter();
-  const raw = params.get("next") ?? "/";
-  const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  const raw = params.get("next") ?? "/board";
+  const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/board";
   const [error, setError] = useState<string | null>(ERRORS[params.get("error") ?? ""] ?? null);
+  const [mode, setMode] = useState<Mode>("password");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const cleanEmail = () => email.trim().toLowerCase();
+
+  // The server check after a password or code sign-in
+  async function finish() {
+    const res = await fetch("/api/auth/after-sign-in", { method: "POST" });
+    const out = await res.json().catch(() => ({ ok: false, error: "failed" }));
+    if (!out.ok) {
+      setBusy(false);
+      return setError(ERRORS[out.error] ?? ERRORS.failed);
+    }
+    router.replace(next);
+    router.refresh();
+  }
+
+  async function signInWithPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const { error } = await createBrowserAuthClient().auth.signInWithPassword({ email: cleanEmail(), password });
+    if (error) {
+      setBusy(false);
+      return setError(
+        error.status === 429
+          ? "Too many tries. Wait a few minutes and try again."
+          : "Wrong email or password. No password yet? Use Google or a code by email, then set one in Settings.",
+      );
+    }
+    await finish();
+  }
 
   async function google() {
     setBusy(true);
@@ -52,18 +90,36 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     const { error } = await createBrowserAuthClient().auth.verifyOtp({
-      email: email.trim().toLowerCase(),
+      email: cleanEmail(),
       token: code.trim(),
       type: "email",
     });
-    setBusy(false);
-    if (error) return setError("That code is wrong or has expired.");
-    router.replace(next);
-    router.refresh();
+    if (error) {
+      setBusy(false);
+      return setError("That code is wrong or has expired.");
+    }
+    await finish();
   }
 
   const field = "min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-base outline-none focus:border-foreground";
   const button = "min-h-12 w-full rounded-xl font-semibold disabled:opacity-50";
+  const emailInput = (
+    <>
+      <label htmlFor="email" className="sr-only">
+        Email
+      </label>
+      <input
+        id="email"
+        type="email"
+        required
+        autoComplete="username"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className={field}
+      />
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,33 +129,40 @@ export function LoginForm() {
         </p>
       )}
 
-      <button type="button" disabled={busy} onClick={() => void google()} className={`${button} bg-foreground text-background`}>
-        Continue with Google
-      </button>
-
-      <div className="flex items-center gap-3 text-xs text-muted">
-        <span className="h-px flex-1 bg-line" />
-        or get a code by email
-        <span className="h-px flex-1 bg-line" />
-      </div>
-
-      {!sent ? (
-        <form onSubmit={(e) => void sendCode(e)} className="flex flex-col gap-3">
-          <label htmlFor="email" className="sr-only">
-            Email
+      {mode === "password" ? (
+        <form onSubmit={(e) => void signInWithPassword(e)} className="flex flex-col gap-3">
+          {emailInput}
+          <label htmlFor="password" className="sr-only">
+            Password
           </label>
-          <input
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={field}
-          />
-          <button type="submit" disabled={busy} className={`${button} border border-line`}>
-            Send code
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              required
+              autoComplete="current-password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`${field} pr-16`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute top-1/2 right-2 min-h-9 -translate-y-1/2 rounded-lg px-2 text-xs text-muted hover:text-foreground"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+          <button type="submit" disabled={busy} className={`${button} bg-accent text-accent-ink`}>
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+      ) : !sent ? (
+        <form onSubmit={(e) => void sendCode(e)} className="flex flex-col gap-3">
+          {emailInput}
+          <button type="submit" disabled={busy} className={`${button} bg-accent text-accent-ink`}>
+            Send me a code
           </button>
         </form>
       ) : (
@@ -127,6 +190,27 @@ export function LoginForm() {
           </button>
         </form>
       )}
+
+      <div className="flex items-center gap-3 text-xs text-muted">
+        <span className="h-px flex-1 bg-line" />
+        or
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
+      <button type="button" disabled={busy} onClick={() => void google()} className={`${button} bg-foreground text-background`}>
+        Continue with Google
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setMode(mode === "password" ? "code" : "password");
+          setSent(false);
+          setError(null);
+        }}
+        className={`${button} border border-line`}
+      >
+        {mode === "password" ? "Get a code by email instead" : "Use email and password instead"}
+      </button>
     </div>
   );
 }

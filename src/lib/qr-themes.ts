@@ -1,4 +1,4 @@
-// Colour themes for printed QR room cards. Each group picks one (Admin → Groups).
+// Colour themes for printed QR room cards. Each group picks one (Admin → Classes → Edit on the group).
 export const QR_THEMES = {
   midnight: { name: "Midnight", accent: "#34d399", eye: "#047857" },
   ember: { name: "Ember", accent: "#fbbf24", eye: "#b45309" },

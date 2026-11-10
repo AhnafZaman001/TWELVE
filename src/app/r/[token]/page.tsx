@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { NoAccess } from "@/components/access-gate";
 import { CheckFlow } from "@/components/check-flow";
@@ -18,6 +19,7 @@ export default function RoomPage(props: PageProps<"/r/[token]">) {
 }
 
 async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchParams">) {
+  await connection(); // the round depends on the clock, so render per request
   const { token } = await props.params;
   const db = await getBackend();
   const room = await db.getRoomByToken(token);
@@ -64,6 +66,7 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
       checks={setup.checks.filter((c) => c.active && c.roundId === round.id).sort((a, b) => a.sort - b.sort)}
       me={me}
       preview={preview}
+      tryRounds={preview || !authEnabled ? rounds : undefined}
       staff={me ? [] : setup.staff.filter((s) => s.active).map((s) => ({ ...s, email: null }))}
     />
   );
