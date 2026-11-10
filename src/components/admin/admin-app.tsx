@@ -7,7 +7,8 @@ import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { SchoolForm } from "./school-form";
 import { SectionsManager } from "./sections-manager";
-import { StaffImport } from "./staff-import";
+import { RoomsManager } from "./rooms-manager";
+import { StaffManager } from "./staff-manager";
 
 const TABS = ["School", "Groups", "Rooms", "Sections", "Rounds", "Checks", "Staff", "Admins", "QR codes"] as const;
 type Tab = (typeof TABS)[number];
@@ -68,21 +69,7 @@ export function AdminApp() {
         onChanged={load}
       />
     ),
-    Rooms: (
-      <EntityTable
-        kind="rooms"
-        title="Rooms"
-        hint="Physical rooms. Each room has its own QR code (see QR codes)."
-        rows={setup.rooms}
-        columns={[
-          { key: "code", label: "Room", type: "text", wide: true },
-          { key: "active", label: "Active", ...yesNo },
-          { key: "sort", label: "Order", type: "number" },
-        ]}
-        blank={() => ({ code: "", active: true, sort: nextSort(setup.rooms) })}
-        onChanged={load}
-      />
-    ),
+    Rooms: <RoomsManager setup={setup} onChanged={load} />,
     Sections: <SectionsManager setup={setup} onChanged={load} />,
     Rounds: (
       <EntityTable
@@ -145,33 +132,7 @@ export function AdminApp() {
         onChanged={load}
       />
     ),
-    Staff: (
-      <div className="flex flex-col gap-4">
-        <EntityTable
-          kind="staff"
-          title="Staff"
-          hint="Teachers and floor incharges who report from the room QR. They sign in with this email (Google or a code). Deactivate to block someone without deleting."
-          rows={setup.staff}
-          columns={[
-            { key: "name", label: "Name", type: "text", wide: true },
-            { key: "email", label: "Sign-in email", type: "text", wide: true },
-            {
-              key: "role",
-              label: "Role",
-              type: "select",
-              options: [
-                { value: "teacher", label: "Teacher" },
-                { value: "floor_incharge", label: "Floor incharge" },
-              ],
-            },
-            { key: "active", label: "Active", ...yesNo },
-          ]}
-          blank={() => ({ name: "", email: null, role: "teacher", active: true })}
-          onChanged={load}
-        />
-        <StaffImport onDone={load} />
-      </div>
-    ),
+    Staff: <StaffManager setup={setup} onChanged={load} />,
     Admins: (
       <EntityTable
         kind="admins"

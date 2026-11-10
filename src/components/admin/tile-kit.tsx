@@ -1,0 +1,198 @@
+"use client";
+
+import { useState } from "react";
+import type { EntityKind } from "@/lib/types";
+
+// Shared pieces for the compact admin lists (Sections, Rooms, Staff):
+// a header with search + add, collapsible blocks of small tiles, and
+// a small editor that opens under the block when a tile is clicked.
+
+export const field = "min-h-10 w-full rounded-lg border border-line bg-surface px-2";
+
+export type SaveResult = { ok: boolean; error?: string; row?: { id: string } };
+
+export async function saveRow(kind: EntityKind, body: object): Promise<SaveResult> {
+  const res = await fetch(`/api/admin/${kind}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json().catch(() => ({ ok: false, error: "Could not save" }));
+}
+
+export async function deleteRow(kind: EntityKind, id: string): Promise<SaveResult> {
+  const res = await fetch(`/api/admin/${kind}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  return res.json().catch(() => ({ ok: false, error: "Could not delete" }));
+}
+
+// numbers inside names sort as numbers: K-2 before K-10
+export const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+
+export function ListHeader(props: {
+  title: string;
+  summary: React.ReactNode;
+  query: string;
+  onQuery: (q: string) => void;
+  searchLabel: string;
+  addLabel: string;
+  adding: boolean;
+  onAdd: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 className="text-xl font-semibold">{props.title}</h2>
+        <p className="text-sm text-muted">{props.summary}</p>
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={props.query}
+          onChange={(e) => props.onQuery(e.target.value)}
+          placeholder={props.searchLabel}
+          aria-label={props.searchLabel}
+          className="min-h-10 w-48 rounded-xl border border-line bg-surface px-3 text-sm"
+        />
+        <button
+          type="button"
+          onClick={props.onAdd}
+          className="min-h-10 rounded-xl bg-foreground px-4 text-sm font-semibold text-background"
+        >
+          {props.adding ? "Close" : props.addLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export type TileItem = { id: string; title: string; sub: string; warn?: boolean; off?: boolean };
+
+// One collapsible block of tiles. `editor` renders under the grid for the open tile.
+export function TileBlock(props: {
+  name: string;
+  count: number;
+  items: TileItem[];
+  openId: string | null;
+  onOpen: (id: string | null) => void;
+  editor?: React.ReactNode;
+  empty?: string;
+  startClosed?: boolean;
+  forceOpen?: boolean;
+}) {
+  const [closed, setClosed] = useState(Boolean(props.startClosed));
+  const isClosed = closed && !props.forceOpen;
+  return (
+    <div className="rounded-2xl border border-line">
+      <button
+        type="button"
+        onClick={() => setClosed((c) => !c)}
+        aria-expanded={!isClosed}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="font-semibold">
+          {props.name} <span className="font-normal text-muted">· {props.count}</span>
+        </span>
+        <span className="text-sm text-muted">{isClosed ? "Show" : "Hide"}</span>
+      </button>
+      {!isClosed && (
+        <div className="border-t border-line p-3">
+          {props.items.length === 0 ? (
+            <p className="px-1 text-sm text-muted">{props.empty ?? "Nothing here yet."}</p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              {props.items.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => props.onOpen(props.openId === t.id ? null : t.id)}
+                    aria-pressed={props.openId === t.id}
+                    className={`flex w-full flex-col rounded-xl border px-3 py-2 text-left ${
+                      props.openId === t.id ? "border-accent bg-accent/10" : "border-line bg-surface hover:border-muted"
+                    } ${t.off ? "opacity-50" : ""}`}
+                  >
+                    <span className="truncate font-semibold">{t.title}</span>
+                    <span className={`truncate text-xs ${t.warn ? "text-warn" : "text-muted"}`}>{t.sub}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {props.editor}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// The frame around a tile's edit form: fields, then Save / Close / Delete.
+export function EditorFrame(props: {
+  children: React.ReactNode;
+  error: string | null;
+  busy: boolean;
+  onSave: () => void;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-col gap-3 rounded-xl border border-accent/40 p-3 text-sm">
+      {props.children}
+      {props.error && <p className="text-danger">{props.error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={props.busy}
+          onClick={props.onSave}
+          className="min-h-9 rounded-lg bg-accent px-4 font-semibold text-accent-ink disabled:opacity-50"
+        >
+          Save
+        </button>
+        <button type="button" onClick={props.onClose} className="min-h-9 rounded-lg px-3 text-muted">
+          Close
+        </button>
+        <button
+          type="button"
+          disabled={props.busy}
+          onClick={props.onDelete}
+          className="ml-auto min-h-9 rounded-lg px-3 text-danger"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// State + save/delete for one open editor.
+export function useEditor<T extends { id: string }>(kind: EntityKind, row: T, onChanged: () => void) {
+  const [draft, setDraft] = useState(row);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const set = <K extends keyof T>(k: K, v: T[K]) => setDraft((d) => ({ ...d, [k]: v }));
+
+  async function run(action: () => Promise<SaveResult>) {
+    setBusy(true);
+    const out = await action();
+    setBusy(false);
+    if (!out.ok) return setError(out.error ?? "Could not save");
+    onChanged();
+  }
+  return {
+    draft,
+    set,
+    error,
+    busy,
+    save: () => void run(() => saveRow(kind, draft)),
+    remove: (confirmText: string) => {
+      if (window.confirm(confirmText)) void run(() => deleteRow(kind, row.id));
+    },
+  };
+}
+
+// A preview chip for one pasted line; red when it will be skipped.
+export function LineChip(props: { title: string; note: string; problem?: boolean }) {
+  return (
+    <li className={`rounded-lg border px-2 py-1 ${props.problem ? "border-danger/50 text-danger" : "border-line"}`}>
+      <span className="font-semibold">{props.title}</span>
+      <span className={props.problem ? "" : "text-muted"}> {props.note}</span>
+    </li>
+  );
+}
