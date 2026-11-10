@@ -15,6 +15,7 @@ export interface Backend {
   upsert<K extends EntityKind>(kind: K, row: EntityInput<K>): Promise<Entities[K]>;
   remove(kind: EntityKind, id: string): Promise<void>;
   renewQr(roomIds: string[]): Promise<Room[]>; // new token + issue date; old QRs stop working
+  setSort(kind: EntityKind, rows: { id: string; sort: number }[]): Promise<void>; // new order, e.g. after a drag
 
   saveReport(report: NewReport): Promise<void>;
   listReports(dateKey: string): Promise<StoredReport[]>;

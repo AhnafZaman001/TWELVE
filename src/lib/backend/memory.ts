@@ -50,6 +50,13 @@ export const memoryBackend: Backend = {
     if (kind === "rounds") s.checks = s.checks.filter((c) => c.roundId !== id);
   },
 
+  async setSort(kind, rows) {
+    for (const { id, sort } of rows) {
+      const row = (state.setup[kind] as { id: string; sort?: number }[]).find((r) => r.id === id);
+      if (row) row.sort = sort;
+    }
+  },
+
   async renewQr(roomIds) {
     const now = new Date().toISOString();
     const rooms = state.setup.rooms.filter((r) => roomIds.includes(r.id));

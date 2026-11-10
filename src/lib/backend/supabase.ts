@@ -234,6 +234,16 @@ export function supabaseBackendFor(slug?: string): Backend {
       if (error) throw new Error(`Delete ${kind}: ${error.message}`);
     },
 
+    async setSort(kind, rows) {
+      const s = await school();
+      const table = COLUMNS[kind].table;
+      const results = await Promise.all(
+        rows.map(({ id, sort }) => supabase.from(table).update({ sort }).eq("id", id).eq("school_id", s.id)),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(`Save order: ${failed.error.message}`);
+    },
+
     async renewQr(roomIds): Promise<Room[]> {
       const s = await school();
       const now = new Date().toISOString();

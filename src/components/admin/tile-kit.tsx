@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { EntityKind } from "@/lib/types";
+import { SortableArea, SortableItem } from "./sortable";
 
 // Shared pieces for the compact admin lists (Sections, Rooms, Staff):
 // a header with search + add, collapsible blocks of small tiles, and
@@ -25,7 +26,9 @@ export async function saveRow(kind: EntityKind, body: Record<string, unknown>): 
 }
 
 export async function deleteRow(kind: EntityKind, id: string): Promise<SaveResult> {
-  const res = await fetch(`/api/admin/${kind}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  const res = await fetch(`/api/admin/${kind}?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
   return res.json().catch(() => ({ ok: false, error: "Could not delete" }));
 }
 
@@ -70,7 +73,13 @@ export function ListHeader(props: {
   );
 }
 
-export type TileItem = { id: string; title: string; sub: string; warn?: boolean; off?: boolean };
+export type TileItem = {
+  id: string;
+  title: string;
+  sub: string;
+  warn?: boolean;
+  off?: boolean;
+};
 
 // One collapsible block of tiles. `editor` renders under the grid for the open tile.
 export function TileBlock(props: {
@@ -85,6 +94,8 @@ export function TileBlock(props: {
   forceOpen?: boolean;
   action?: React.ReactNode; // e.g. an Edit button in the header
   children?: React.ReactNode; // shown above the tiles, e.g. the block's own editor
+  onReorder?: (ids: string[]) => void; // set to let tiles be dragged; each tile then shows its number
+  sortDisabled?: boolean; // e.g. while searching, when only some tiles show
 }) {
   const [closed, setClosed] = useState(Boolean(props.startClosed));
   const isClosed = closed && !props.forceOpen;
@@ -110,23 +121,45 @@ export function TileBlock(props: {
           {props.items.length === 0 ? (
             <p className="px-1 text-sm text-muted">{props.empty ?? "Nothing here yet."}</p>
           ) : (
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              {props.items.map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => props.onOpen(props.openId === t.id ? null : t.id)}
-                    aria-pressed={props.openId === t.id}
-                    className={`flex w-full flex-col rounded-xl border px-3 py-2 text-left ${
-                      props.openId === t.id ? "border-accent bg-accent/10" : "border-line bg-surface hover:border-muted"
-                    } ${t.off ? "opacity-50" : ""}`}
-                  >
-                    <span className="truncate font-semibold">{t.title}</span>
-                    <span className={`truncate text-xs ${t.warn ? "text-warn" : "text-muted"}`}>{t.sub}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <SortableArea
+              ids={props.items.map((t) => t.id)}
+              layout="grid"
+              disabled={!props.onReorder || props.sortDisabled}
+              onReorder={(ids) => props.onReorder?.(ids)}
+            >
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                {props.items.map((t, i) => (
+                  <SortableItem
+                    key={t.id}
+                    id={t.id}
+                    className={props.onReorder && !props.sortDisabled ? "touch-manipulation" : ""}
+                    handle={
+                      <button
+                        type="button"
+                        onClick={() => props.onOpen(props.openId === t.id ? null : t.id)}
+                        aria-pressed={props.openId === t.id}
+                        className={`relative flex w-full flex-col rounded-xl border px-3 py-2 text-left ${
+                          props.openId === t.id
+                            ? "border-accent bg-accent/10"
+                            : "border-line bg-surface hover:border-muted"
+                        } ${t.off ? "opacity-50" : ""} ${props.onReorder && !props.sortDisabled ? "cursor-grab active:cursor-grabbing" : ""}`}
+                      >
+                        {props.onReorder && (
+                          <span
+                            className="absolute top-1.5 right-2 text-xs text-muted tabular-nums"
+                            aria-label={`Number ${i + 1}`}
+                          >
+                            {i + 1}
+                          </span>
+                        )}
+                        <span className="truncate pr-5 font-semibold">{t.title}</span>
+                        <span className={`truncate text-xs ${t.warn ? "text-warn" : "text-muted"}`}>{t.sub}</span>
+                      </button>
+                    }
+                  />
+                ))}
+              </ul>
+            </SortableArea>
           )}
           {props.editor}
         </div>

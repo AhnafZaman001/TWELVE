@@ -3,28 +3,45 @@
 import { useState } from "react";
 import { QR_THEMES, THEME_KEYS } from "@/lib/qr-themes";
 import type { Group, Room, Section, Setup } from "@/lib/types";
+import { saveOrder } from "./sortable";
 import { EditorFrame, HeaderButton, LineChip, ListHeader, TileBlock, byName, field, saveRow, useEditor } from "./tile-kit";
 
 // Sections shown as small tiles under their group (1st Year, 2nd Year…).
 // Groups are edited from their own heading. Click a tile to edit a section;
 // "Add sections" takes many at once.
-export function SectionsManager(props: { setup: Setup; onChanged: () => void }) {
+export function SectionsManager(props: { setup: Setup; onChanged: () => void | Promise<void> }) {
   const { setup } = props;
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [groupEdit, setGroupEdit] = useState<string | null>(null); // a group id, or "new"
+  const [dragged, setDragged] = useState<string[] | null>(null); // new order, shown until the reload lands
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   const roomOf = (s: Section) => setup.rooms.find((r) => r.id === s.roomId);
   const q = query.trim().toLowerCase();
   const matches = (s: Section) =>
     !q || s.name.toLowerCase().includes(q) || (roomOf(s)?.code.toLowerCase().includes(q) ?? false);
-  const sections = [...setup.sections].sort((a, b) => a.sort - b.sort || byName(a.name, b.name));
+  const position = (id: string) => dragged?.indexOf(id) ?? -1;
+  const sections = [...setup.sections].sort((a, b) =>
+    dragged ? position(a.id) - position(b.id) : a.sort - b.sort || byName(a.name, b.name),
+  );
   const groups = [...setup.groups].sort((a, b) => a.sort - b.sort);
   const blocks = [
     ...groups.map((g) => ({ key: g.id, name: g.name, rows: sections.filter((s) => s.groupId === g.id) })),
     { key: "none", name: "No group", rows: sections.filter((s) => !groups.some((g) => g.id === s.groupId)) },
   ].filter((b) => b.rows.length > 0 || b.key !== "none");
+  // After a drag in one group, number every section in screen order:
+  // 1st Year 1…16, then 2nd Year 17…32, so the live board follows the same order.
+  async function reorder(blockKey: string, ids: string[]) {
+    const all = blocks.flatMap((b) => (b.key === blockKey ? ids : b.rows.map((s) => s.id)));
+    setDragged(all);
+    setOrderError(null);
+    const out = await saveOrder("sections", all);
+    if (!out.ok) setOrderError(out.error ?? "Could not save the new order");
+    await props.onChanged();
+    setDragged(null);
+  }
   const withoutRoom = sections.filter((s) => s.active && !roomOf(s)).length;
   const changed = () => {
     setOpenId(null);
@@ -44,7 +61,7 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
           <>
             {groups.length} groups · {sections.length} sections
             {withoutRoom > 0 && <span className="text-warn"> · {withoutRoom} not in a room yet</span>}. Click a section to
-            change it, or Edit on a group to rename it or set its QR colour.
+            change it, drag it to change the order, or Edit on a group to rename it or set its QR colour.
           </>
         }
         extra={
@@ -74,6 +91,8 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
         />
       )}
 
+      {orderError && <p className="text-sm text-danger">{orderError}</p>}
+
       {groupEdit === "new" && <div className="rounded-2xl border border-line p-3">{groupEditor(blankGroup)}</div>}
 
       {blocks.map((block) => {
@@ -88,6 +107,8 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void }) 
             forceOpen={Boolean(q)}
             openId={openId}
             onOpen={setOpenId}
+            onReorder={(ids) => void reorder(block.key, ids)}
+            sortDisabled={Boolean(q)}
             empty="No sections in this group yet."
             action={
               block.key !== "none" && (
@@ -192,7 +213,7 @@ function EditSection(props: { section: Section; setup: Setup; onClose: () => voi
       onClose={props.onClose}
       onDelete={() => ed.remove(`Delete section “${props.section.name}”? Past reports keep their copy of the name.`)}
     >
-      <div className="grid gap-3 sm:grid-cols-[2fr_2fr_2fr_1fr_auto]">
+      <div className="grid gap-3 sm:grid-cols-[2fr_2fr_2fr_auto]">
         <label className="flex flex-col gap-1">
           Name
           <input value={draft.name} onChange={(e) => set("name", e.target.value)} className={field} />
@@ -218,10 +239,6 @@ function EditSection(props: { section: Section; setup: Setup; onClose: () => voi
               </option>
             ))}
           </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          Order
-          <input type="number" value={draft.sort} onChange={(e) => set("sort", Number(e.target.value) || 0)} className={field} />
         </label>
         <label className="flex items-center gap-2 sm:mt-6">
           <input type="checkbox" checked={draft.active} onChange={(e) => set("active", e.target.checked)} className="size-4" />

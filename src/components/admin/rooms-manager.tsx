@@ -92,14 +92,10 @@ function EditRoom(props: { room: Room; setup: Setup; onClose: () => void; onChan
         )
       }
     >
-      <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto]">
+      <div className="grid gap-3 sm:grid-cols-[2fr_auto]">
         <label className="flex flex-col gap-1">
           Room
           <input value={draft.code} onChange={(e) => set("code", e.target.value)} className={field} />
-        </label>
-        <label className="flex flex-col gap-1">
-          Order
-          <input type="number" value={draft.sort} onChange={(e) => set("sort", Number(e.target.value) || 0)} className={field} />
         </label>
         <label className="flex items-center gap-2 sm:mt-6">
           <input type="checkbox" checked={draft.active} onChange={(e) => set("active", e.target.checked)} className="size-4" />
