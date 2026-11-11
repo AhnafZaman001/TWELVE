@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createBrowserAuthClient } from "@/lib/supabase/browser";
 
@@ -17,7 +17,6 @@ type Mode = "password" | "code";
 // admin's sign-in is e-mailed.
 export function LoginForm() {
   const params = useSearchParams();
-  const router = useRouter();
   const raw = params.get("next") ?? "/board";
   const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/board";
   const [error, setError] = useState<string | null>(ERRORS[params.get("error") ?? ""] ?? null);
@@ -38,8 +37,8 @@ export function LoginForm() {
       setBusy(false);
       return setError(ERRORS[out.error] ?? ERRORS.failed);
     }
-    router.replace(next);
-    router.refresh();
+    // a full page load, so the entry pass from this sign-in is used right away
+    window.location.assign(next);
   }
 
   async function signInWithPassword(e: React.FormEvent) {

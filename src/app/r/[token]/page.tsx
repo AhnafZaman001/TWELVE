@@ -58,6 +58,7 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
 
   return (
     <CheckFlow
+      key={round.id}
       room={room}
       section={sectionInRoom(setup, room.id)}
       round={round}

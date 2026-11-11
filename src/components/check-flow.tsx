@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReportInput } from "@/lib/report";
 import type { Check, Role, Room, Round, Section, Staff } from "@/lib/types";
@@ -131,22 +132,22 @@ export function CheckFlow(props: {
       {props.tryRounds && (
         <div className="mt-3 flex flex-col gap-2 rounded-xl border border-warn/50 px-3 py-2 text-xs">
           <div className="flex items-center justify-between gap-2">
-            <a href="/admin#qr-codes" className="font-medium text-foreground underline underline-offset-4">
+            <Link href="/admin#qr-codes" className="font-medium text-foreground underline underline-offset-4">
               ← Back to QR codes
-            </a>
+            </Link>
             <span className="text-warn">{props.preview ? "Preview · nothing is saved" : "Sample data"}</span>
           </div>
           {props.tryRounds.length > 1 && (
             <nav aria-label="Round" className="flex flex-wrap gap-1">
               {props.tryRounds.map((r) => (
-                <a
+                <Link
                   key={r.id}
                   href={`?round=${r.id}`}
                   aria-current={r.id === round.id ? "page" : undefined}
                   className={`rounded-lg px-2 py-1 ${r.id === round.id ? "bg-foreground text-background" : "text-muted hover:text-foreground"}`}
                 >
                   {r.name}
-                </a>
+                </Link>
               ))}
             </nav>
           )}
@@ -246,9 +247,13 @@ export function CheckFlow(props: {
               </ul>
             )}
             <p className="text-sm text-muted">
-              {nextRound
-                ? `Scan this QR again after ${nextRound.startTime} for “${nextRound.name}”.`
-                : "You are done for this test."}
+              {props.preview
+                ? nextRound
+                  ? `Next: “${nextRound.name}” from ${nextRound.startTime}.`
+                  : "That was the last round."
+                : nextRound
+                  ? `You have been signed out. Scan this QR again after ${nextRound.startTime} for “${nextRound.name}” and sign in again.`
+                  : "You are done for this test and have been signed out."}
             </p>
           </Card>
         )}

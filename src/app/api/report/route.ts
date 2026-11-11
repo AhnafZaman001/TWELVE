@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { emailProblemReport } from "@/lib/alerts";
 import { getBackend } from "@/lib/data";
 import { prepareReport } from "@/lib/record";
+import { createAuthClient } from "@/lib/supabase/server";
 import { findProblems, reportSchema } from "@/lib/report";
 
 export async function POST(request: Request) {
@@ -46,5 +47,7 @@ export async function POST(request: Request) {
     const report = prepared.value;
     after(() => emailProblemReport(setup, report).catch((e) => console.error("Alert e-mail:", e)));
   }
+  // One sign-in, one report: the teacher signs in again at the next scan.
+  if (authEnabled) await (await createAuthClient()).auth.signOut({ scope: "local" });
   return Response.json({ ok: true, problems: prepared.value.problems });
 }

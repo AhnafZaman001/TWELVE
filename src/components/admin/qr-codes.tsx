@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { qrCodeLabel, type RenewScope } from "@/lib/qr";
 import { roundsByTime } from "@/lib/setup";
@@ -172,13 +173,13 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
               />
               <div className="flex items-center justify-between gap-2 text-xs text-muted print:hidden">
                 <span>Issued {issued(room.qrIssuedAt)}</span>
-                <a
+                <Link
                   href={`/r/${room.token}`}
                   className="ml-auto min-h-9 content-center rounded-lg px-2 font-medium text-foreground hover:text-accent"
                   title="See what a teacher sees after scanning this card. Nothing is saved."
                 >
                   Try it
-                </a>
+                </Link>
                 <button
                   type="button"
                   disabled={busy}

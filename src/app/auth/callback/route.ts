@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeNext } from "@/lib/auth";
+import { ENTRY_COOKIE, entryCookieOptions, newEntryPass } from "@/lib/entry-pass";
 import { checkSignIn } from "@/lib/sign-in";
 import { createAuthClient } from "@/lib/supabase/server";
 
@@ -22,7 +23,9 @@ export async function GET(request: Request) {
     await supabase.auth.signOut();
     return back("not-invited");
   }
-  return NextResponse.redirect(new URL(next, url.origin));
+  const response = NextResponse.redirect(new URL(next, url.origin));
+  response.cookies.set(ENTRY_COOKIE, await newEntryPass(), entryCookieOptions); // lets this one page open
+  return response;
 }
 
 // The session id inside the new access token (just read, it was issued a moment ago)

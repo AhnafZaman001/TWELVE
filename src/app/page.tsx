@@ -22,12 +22,13 @@ export default function Home() {
             Live invigilation checks for every test room, with alerts for the principal.
           </p>
         </div>
-        <Link
+        {/* a full page load: opening TWELVE always asks for a sign-in */}
+        <a
           href="/board"
           className="inline-flex min-h-12 items-center rounded-xl bg-accent px-8 font-semibold text-accent-ink"
         >
           Open TWELVE
-        </Link>
+        </a>
       </header>
 
       <ol className="grid gap-3 text-sm sm:grid-cols-3">

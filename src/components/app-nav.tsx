@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { ADMIN_TABS, hashFor, onHashChange, placeFromHash } from "@/lib/admin-tabs";
 
 // The one top bar for the principal's side: the live board and every admin
 // tab in one row, who is signed in, and Sign out. Each item is a real link,
-// so the browser's Back button moves between them.
+// so the browser's Back button moves between them. Moving between pages here
+// is an in-app move, so it does not ask for a new sign-in (see proxy.ts).
 export function AppNav(props: { canAdmin: boolean; email: string | null }) {
   const path = usePathname();
   const hash = useSyncExternalStore(onHashChange, () => window.location.hash, () => "");
@@ -25,21 +27,22 @@ export function AppNav(props: { canAdmin: boolean; email: string | null }) {
       className="sticky top-0 z-30 border-b border-line bg-background/95 backdrop-blur print:hidden"
     >
       <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 text-sm sm:px-8">
-        <a href="/board" className="shrink-0 font-semibold tracking-widest">
+        <Link href="/board" className="shrink-0 font-semibold tracking-widest">
           TWELVE
-        </a>
+        </Link>
         <ul className="-my-1 flex min-w-0 flex-1 gap-1 overflow-x-auto py-1">
           {links.map((l) => (
             <li key={l.href} className="shrink-0">
-              <a
-                href={l.href}
-                aria-current={l.current ? "page" : undefined}
-                className={`inline-flex min-h-9 items-center rounded-lg px-3 font-medium ${
-                  l.current ? "bg-foreground text-background" : "text-muted hover:text-foreground"
-                }`}
-              >
-                {l.label}
-              </a>
+              {/* on the same page a plain #link switches the admin tab; another page is an in-app move */}
+              {l.href.split("#")[0] === path ? (
+                <a href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)}>
+                  {l.label}
+                </a>
+              ) : (
+                <Link href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)}>
+                  {l.label}
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -57,3 +60,8 @@ export function AppNav(props: { canAdmin: boolean; email: string | null }) {
     </nav>
   );
 }
+
+const linkClass = (current: boolean) =>
+  `inline-flex min-h-9 items-center rounded-lg px-3 font-medium ${
+    current ? "bg-foreground text-background" : "text-muted hover:text-foreground"
+  }`;
