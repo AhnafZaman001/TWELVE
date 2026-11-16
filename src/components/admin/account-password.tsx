@@ -33,13 +33,7 @@ export function AccountPassword() {
 
   return (
     <form onSubmit={(e) => void save(e)} className="flex max-w-xl flex-col gap-3 rounded-2xl border border-line p-4 text-sm">
-      <div>
-        <h2 className="text-xl font-semibold">Your password</h2>
-        <p className="text-muted">
-          Set a password to sign in with your email and password instead of Google. Every admin sign-in is e-mailed to you
-          and to the admins with alert e-mails on.
-        </p>
-      </div>
+      <h2 className="text-xl font-semibold">Set a password</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
           New password
