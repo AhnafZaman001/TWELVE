@@ -29,7 +29,6 @@ export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
   return (
     <section className="flex flex-col gap-4">
       <ListHeader
-        title="Rooms"
         summary={null}
         query={query}
         onQuery={setQuery}
@@ -64,10 +63,7 @@ export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
             startClosed={block.key === "off"}
             openId={openId}
             onOpen={setOpenId}
-            items={rows.map((r) => {
-              const section = sectionIn(r);
-              return { id: r.id, title: r.code, sub: !r.active ? "Off" : section ? section.name : "Empty", off: !r.active };
-            })}
+            items={rows.map((r) => ({ id: r.id, title: r.code, sub: !r.active ? "Off" : "", off: !r.active }))}
             editor={open && <EditRoom key={open.id} room={open} setup={setup} onClose={() => setOpenId(null)} onChanged={changed} />}
           />
         );

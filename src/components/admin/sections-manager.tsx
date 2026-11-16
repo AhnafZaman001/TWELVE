@@ -42,7 +42,6 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void | P
     await props.onChanged();
     setDragged(null);
   }
-  const withoutRoom = sections.filter((s) => s.active && !roomOf(s)).length;
   const changed = () => {
     setOpenId(null);
     setGroupEdit(null);
@@ -56,14 +55,7 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void | P
   return (
     <section className="flex flex-col gap-4">
       <ListHeader
-        title="Classes"
-        summary={
-          <>
-            {groups.length} groups · {sections.length} sections
-            {withoutRoom > 0 && <span className="text-warn"> · {withoutRoom} not in a room yet</span>}. Click a section to
-            change it, drag it to change the order, or Edit on a group to rename it or set its QR colour.
-          </>
-        }
+        summary={null}
         extra={
           <button
             type="button"
@@ -124,7 +116,7 @@ export function SectionsManager(props: { setup: Setup; onChanged: () => void | P
               return {
                 id: s.id,
                 title: s.name,
-                sub: !s.active ? "Off" : room ? `Room ${room.code}` : "No room",
+                sub: !s.active ? "Off" : room ? "" : "No room",
                 warn: s.active && !room,
                 off: !s.active,
               };

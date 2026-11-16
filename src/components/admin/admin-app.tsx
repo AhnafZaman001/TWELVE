@@ -73,19 +73,9 @@ export function AdminApp(props: { passwordSignIn?: boolean }) {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 print:block print:max-w-none print:p-0">
-      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1 print:hidden">
-        <h1 className="text-2xl font-semibold tracking-tight">{setup.school.name}</h1>
-        <button
-          type="button"
-          onClick={() => go("Settings")}
-          className="min-h-8 rounded-lg border border-line px-2 text-xs font-medium text-muted hover:text-foreground"
-        >
-          Rename
-        </button>
-        {setup.backend !== "supabase" && (
-          <p className="text-xs text-warn">Sample data · changes reset when the server restarts</p>
-        )}
-      </header>
+      {setup.backend !== "supabase" && (
+        <p className="text-xs text-warn print:hidden">Sample data · changes reset when the server restarts</p>
+      )}
 
       {error && <p className="text-sm text-danger print:hidden">{error}</p>}
 
