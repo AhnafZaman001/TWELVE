@@ -50,7 +50,7 @@ export function ListHeader(props: {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h2 className="text-xl font-semibold">{props.title}</h2>
-        <p className="text-sm text-muted">{props.summary}</p>
+        {props.summary && <p className="text-sm text-muted">{props.summary}</p>}
       </div>
       <div className="flex gap-2">
         <input

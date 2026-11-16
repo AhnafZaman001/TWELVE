@@ -83,11 +83,9 @@ export function AdminApp(props: { passwordSignIn?: boolean }) {
         >
           Rename
         </button>
-        <p className={`text-xs ${setup.backend === "supabase" ? "text-accent" : "text-warn"}`}>
-          {setup.backend === "supabase"
-            ? "Changes are saved to Supabase"
-            : "Sample data · changes reset when the server restarts"}
-        </p>
+        {setup.backend !== "supabase" && (
+          <p className="text-xs text-warn">Sample data · changes reset when the server restarts</p>
+        )}
       </header>
 
       {error && <p className="text-sm text-danger print:hidden">{error}</p>}

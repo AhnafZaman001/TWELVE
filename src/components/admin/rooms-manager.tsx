@@ -30,7 +30,7 @@ export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
     <section className="flex flex-col gap-4">
       <ListHeader
         title="Rooms"
-        summary={`${rooms.length} rooms. Each room has its own QR code. Put a section in a room from the Sections tab.`}
+        summary={null}
         query={query}
         onQuery={setQuery}
         searchLabel="Find room or section"
