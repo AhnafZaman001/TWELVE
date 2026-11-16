@@ -65,14 +65,7 @@ export function TestManager(props: { setup: Setup; onChanged: () => void | Promi
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">Test</h2>
-          <p className="text-sm text-muted">
-            {rounds.length} rounds · {setup.checks.length} checks. In each round, teachers see these checks one card at
-            a time, in this order. Drag a check to move it.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={() => setRoundEdit(roundEdit === "new" ? null : "new")}
