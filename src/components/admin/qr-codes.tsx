@@ -71,14 +71,6 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-col gap-4 print:hidden">
-        <div>
-          <h2 className="text-xl font-semibold">QR codes</h2>
-          <p className="text-sm text-muted">
-            One card per room with a section, in its group&apos;s colour (set with Edit on the group in Classes). “Try it” shows what a
-            teacher sees after scanning, without saving anything. In the print window, choose A4 and turn on “Background
-            graphics”.
-          </p>
-        </div>
 
         <div className="flex flex-wrap items-end gap-3 text-sm">
           <label className="flex flex-col gap-1">
@@ -109,10 +101,6 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
         </div>
 
         <div className="flex flex-col gap-3 rounded-2xl border border-line p-4 text-sm">
-          <p className="font-semibold">Renew QR codes</p>
-          <p className="text-muted">
-            Stops old or photographed codes from working. Every renewed room needs its new card printed.
-          </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
