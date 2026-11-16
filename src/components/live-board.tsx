@@ -14,6 +14,22 @@ const STATUS: Record<RoundStatus, { label: string; chip: string }> = {
   missing: { label: "No report", chip: "border-danger text-danger" },
 };
 
+type Filter = "all" | "ok" | "waiting" | "problem" | "missing";
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "All sections" },
+  { value: "ok", label: "Done (all rounds)" },
+  { value: "waiting", label: "Waiting" },
+  { value: "problem", label: "Problem" },
+  { value: "missing", label: "No report" },
+];
+
+function matchesFilter(section: BoardSection, f: Filter) {
+  const s = Object.values(section.status);
+  if (f === "all") return true;
+  if (f === "ok") return s.length > 0 && s.every((x) => x === "ok" || x === "upcoming") && s.includes("ok");
+  return s.includes(f);
+}
+
 function tone(section: BoardSection) {
   const s = Object.values(section.status);
   if (s.includes("problem") || s.includes("missing")) return "border-danger/60";
@@ -33,6 +49,7 @@ export function LiveBoard() {
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
   const [groupId, setGroupId] = useState<string>("all");
+  const [show, setShow] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -75,7 +92,9 @@ export function LiveBoard() {
     );
   }
 
-  const sections = board.sections.filter((s) => groupId === "all" || s.groupId === groupId);
+  const sections = board.sections
+    .filter((s) => groupId === "all" || s.groupId === groupId)
+    .filter((s) => matchesFilter(s, show));
   const open = board.sections.find((s) => s.id === openId) ?? null;
   const active = board.rounds.find((r) => r.id === board.activeRoundId);
   const roundTag = (i: number) => `R${i + 1}`;
@@ -97,9 +116,7 @@ export function LiveBoard() {
             {clock && " (preview time)"}
             {failed && " · connection lost, retrying"}
           </p>
-          <p className={`text-xs ${board.backend === "supabase" ? "text-accent" : "text-warn"}`}>
-            {board.backend === "supabase" ? "Saved to Supabase" : "Sample data · not saved"}
-          </p>
+          {board.backend !== "supabase" && <p className="text-xs text-warn">Sample data · not saved</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <label htmlFor="demo-clock" className="text-muted">
@@ -135,7 +152,10 @@ export function LiveBoard() {
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl
+        className="grid grid-cols-2 gap-3 lg:[grid-template-columns:repeat(var(--stats),minmax(0,1fr))]"
+        style={{ "--stats": board.rounds.length + 2 } as React.CSSProperties}
+      >
         {board.rounds.map((r) => (
           <Stat key={r.id} label={`${r.name} reported`} value={`${board.summary.reported[r.id]}/${board.summary.total}`} />
         ))}
@@ -146,25 +166,38 @@ export function LiveBoard() {
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <section className="flex flex-col gap-4" aria-label="Sections">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap gap-1 rounded-xl border border-line p-1 text-sm" role="tablist">
-              {[{ id: "all", name: "All" }, ...board.groups].map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={groupId === g.id}
-                  onClick={() => setGroupId(g.id)}
-                  className={`min-h-9 rounded-lg px-3 font-medium ${groupId === g.id ? "bg-foreground text-background" : "text-muted"}`}
-                >
-                  {g.name}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 text-sm">
+              <select
+                aria-label="Class year"
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="min-h-10 rounded-xl border border-line bg-surface px-3"
+              >
+                <option value="all">All years</option>
+                {board.groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="Show"
+                value={show}
+                onChange={(e) => setShow(e.target.value as Filter)}
+                className="min-h-10 rounded-xl border border-line bg-surface px-3"
+              >
+                {FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <Legend />
           </div>
           {sections.length === 0 && (
             <p className="rounded-2xl border border-line p-4 text-sm text-muted">
-              No sections placed in rooms yet. Add them in Admin → Sections.
+              {board.sections.length ? "No sections match these filters." : "No sections placed in rooms yet. Add them in Admin → Classes."}
             </p>
           )}
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6">
