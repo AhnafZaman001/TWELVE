@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Board, BoardAlert, BoardSection, RoundStatus } from "@/lib/board";
 import { addMinutes } from "@/lib/time";
+import { Dropdown, type DropdownOption } from "./dropdown";
 
 const POLL_MS = 5000;
 
@@ -15,12 +16,12 @@ const STATUS: Record<RoundStatus, { label: string; chip: string }> = {
 };
 
 type Filter = "all" | "ok" | "waiting" | "problem" | "missing";
-const FILTERS: { value: Filter; label: string }[] = [
+const FILTERS: DropdownOption<Filter>[] = [
   { value: "all", label: "All sections" },
-  { value: "ok", label: "Done (all rounds)" },
-  { value: "waiting", label: "Waiting" },
-  { value: "problem", label: "Problem" },
-  { value: "missing", label: "No report" },
+  { value: "ok", label: "Done", dot: "bg-accent" },
+  { value: "waiting", label: "Waiting", dot: "bg-warn" },
+  { value: "problem", label: "Problem", dot: "bg-danger" },
+  { value: "missing", label: "No report", dot: "border border-danger" },
 ];
 
 function matchesFilter(section: BoardSection, f: Filter) {
@@ -170,34 +171,15 @@ export function LiveBoard() {
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <section className="flex flex-col gap-4" aria-label="Sections">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap gap-2 text-sm">
-              <select
-                aria-label="Class year"
+            <div className="flex flex-wrap gap-2">
+              <Dropdown
+                label="Class year"
                 value={groupId}
-                onChange={(e) => setGroupId(e.target.value)}
-                className="min-h-10 rounded-xl border border-line bg-surface px-3"
-              >
-                <option value="all">All years</option>
-                {board.groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Show"
-                value={show}
-                onChange={(e) => setShow(e.target.value as Filter)}
-                className="min-h-10 rounded-xl border border-line bg-surface px-3"
-              >
-                {FILTERS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setGroupId}
+                options={[{ value: "all", label: "All years" }, ...board.groups.map((g) => ({ value: g.id, label: g.name }))]}
+              />
+              <Dropdown label="Show" value={show} onChange={setShow} options={FILTERS} />
             </div>
-            <Legend />
           </div>
           {sections.length === 0 && (
             <p className="rounded-2xl border border-line p-4 text-sm text-muted">
@@ -331,18 +313,6 @@ function Stat(props: { label: string; value: string | number; tone?: "danger" })
         {props.value}
       </dd>
     </div>
-  );
-}
-
-function Legend() {
-  return (
-    <ul className="hidden flex-wrap gap-2 text-xs md:flex">
-      {(["ok", "waiting", "problem", "missing"] as const).map((s) => (
-        <li key={s} className={`rounded-md border px-2 py-0.5 ${STATUS[s].chip}`}>
-          {STATUS[s].label}
-        </li>
-      ))}
-    </ul>
   );
 }
 
