@@ -20,7 +20,7 @@ export async function AccessGate(props: { level: Access; next: string; children:
       <NoAccess email={viewer.email}>
         {viewer.admin
           ? "Coordinators can see the live board but not the admin screen."
-          : "This page is for the principal and coordinators."}
+          : "This page is for the principal, coordinators and floor incharges."}
       </NoAccess>
     );
   }

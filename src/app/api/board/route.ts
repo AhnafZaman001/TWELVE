@@ -1,4 +1,4 @@
-import { requireAccess } from "@/lib/auth";
+import { authEnabled, canAccess, getViewer, requireAccess } from "@/lib/auth";
 import { buildBoard } from "@/lib/board";
 import { getBackend } from "@/lib/data";
 import { localParts } from "@/lib/time";
@@ -18,5 +18,7 @@ export async function GET(request: Request) {
     now,
     clockOverride: at && /^\d{2}:\d{2}$/.test(at) ? at : undefined,
   });
-  return Response.json({ ...board, backend: db.name });
+  // only admins get the sample-day buttons (they change today's data)
+  const canEdit = !authEnabled || canAccess(await getViewer(setup), "admin");
+  return Response.json({ ...board, backend: db.name, canEdit });
 }

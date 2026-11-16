@@ -42,8 +42,12 @@ export async function getViewer(setup?: Setup): Promise<Viewer | null> {
 
 export type Access = "board" | "admin";
 
+// Live board: owner, admin, coordinator, and floor incharges (to watch every
+// room and act on problems). Admin screen (staff, classes, settings): owner and admin only.
 export function canAccess(viewer: Viewer | null, level: Access) {
-  if (!viewer?.admin) return false;
+  if (!viewer) return false;
+  if (level === "board" && viewer.staff?.role === "floor_incharge") return true;
+  if (!viewer.admin) return false;
   return level === "board" || viewer.admin.role !== "coordinator";
 }
 

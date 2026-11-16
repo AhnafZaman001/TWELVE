@@ -45,7 +45,7 @@ function demoClocks(board: Board) {
 }
 
 export function LiveBoard() {
-  const [board, setBoard] = useState<(Board & { backend?: string }) | null>(null);
+  const [board, setBoard] = useState<(Board & { backend?: string; canEdit?: boolean }) | null>(null);
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
   const [groupId, setGroupId] = useState<string>("all");
@@ -59,7 +59,7 @@ export function LiveBoard() {
       try {
         const res = await fetch(`/api/board${clock ? `?at=${clock}` : ""}`, { cache: "no-store" });
         if (!res.ok) throw new Error();
-        const data: Board & { backend?: string } = await res.json();
+        const data: Board & { backend?: string; canEdit?: boolean } = await res.json();
         if (alive) {
           setBoard(data);
           setFailed(false);
@@ -135,6 +135,8 @@ export function LiveBoard() {
               </option>
             ))}
           </select>
+          {board.canEdit && (
+            <>
           <button
             type="button"
             onClick={() => void demo("POST")}
@@ -149,6 +151,8 @@ export function LiveBoard() {
           >
             Clear
           </button>
+            </>
+          )}
         </div>
       </header>
 
