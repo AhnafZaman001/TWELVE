@@ -5,6 +5,10 @@ import type { Setup, Staff } from "@/lib/types";
 import { StaffImport } from "./staff-import";
 import { EditorFrame, ListHeader, TileBlock, byName, field, saveRow, useEditor } from "./tile-kit";
 
+// "Prof. Ali Khan" → "Ali Khan" on the tiles (the saved name is unchanged)
+const plainName = (name: string) =>
+  name.replace(/^\s*((prof|dr|mr|mrs|ms|miss|sir|madam|engr|ch)(\.\s*|\s+))+/i, "").trim() || name;
+
 const ROLES = [
   { value: "teacher", label: "Teachers" },
   { value: "floor_incharge", label: "Floor incharges" },
@@ -20,8 +24,9 @@ export function StaffManager(props: { setup: Setup; onChanged: () => void }) {
 
   const q = query.trim().toLowerCase();
   const matches = (s: Staff) => !q || s.name.toLowerCase().includes(q) || (s.email ?? "").includes(q);
-  const staff = [...setup.staff].sort((a, b) => Number(b.active) - Number(a.active) || byName(a.name, b.name));
-  const noEmail = staff.filter((s) => s.active && !s.email).length;
+  const staff = [...setup.staff].sort(
+    (a, b) => Number(b.active) - Number(a.active) || byName(plainName(a.name), plainName(b.name)),
+  );
   const changed = () => {
     setOpenId(null);
     props.onChanged();
@@ -30,14 +35,7 @@ export function StaffManager(props: { setup: Setup; onChanged: () => void }) {
   return (
     <section className="flex flex-col gap-4">
       <ListHeader
-        title="Staff"
-        summary={
-          <>
-            {staff.length} people
-            {noEmail > 0 && <span className="text-warn"> · {noEmail} without a sign-in email</span>}. They sign in with this
-            email (Google or a code). Switch someone off to block them without deleting.
-          </>
-        }
+        summary={null}
         query={query}
         onQuery={setQuery}
         searchLabel="Find name or email"
@@ -74,8 +72,8 @@ export function StaffManager(props: { setup: Setup; onChanged: () => void }) {
             empty="Nobody yet."
             items={rows.map((s) => ({
               id: s.id,
-              title: s.name,
-              sub: !s.active ? "Off" : (s.email ?? "No email"),
+              title: plainName(s.name),
+              sub: !s.active ? "Off" : s.email ? "" : "No email",
               warn: s.active && !s.email,
               off: !s.active,
             }))}

@@ -36,7 +36,7 @@ export async function deleteRow(kind: EntityKind, id: string): Promise<SaveResul
 export const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
 export function ListHeader(props: {
-  title: string;
+  title?: string;
   summary: React.ReactNode;
   query: string;
   onQuery: (q: string) => void;
@@ -49,7 +49,7 @@ export function ListHeader(props: {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="text-xl font-semibold">{props.title}</h2>
+        {props.title && <h2 className="text-xl font-semibold">{props.title}</h2>}
         {props.summary && <p className="text-sm text-muted">{props.summary}</p>}
       </div>
       <div className="flex gap-2">
@@ -153,7 +153,7 @@ export function TileBlock(props: {
                           </span>
                         )}
                         <span className="truncate pr-5 font-semibold">{t.title}</span>
-                        <span className={`truncate text-xs ${t.warn ? "text-warn" : "text-muted"}`}>{t.sub}</span>
+                        {t.sub && <span className={`truncate text-xs ${t.warn ? "text-warn" : "text-muted"}`}>{t.sub}</span>}
                       </button>
                     }
                   />
