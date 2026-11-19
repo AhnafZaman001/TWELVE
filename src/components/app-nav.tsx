@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NavigationIcon } from "./navigation-icon";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { ADMIN_TABS, hashFor, onHashChange, placeFromHash } from "@/lib/admin-tabs";
@@ -35,12 +36,14 @@ export function AppNav(props: { canAdmin: boolean; email: string | null }) {
             <li key={l.href} className="shrink-0">
               {/* on the same page a plain #link switches the admin tab; another page is an in-app move */}
               {l.href.split("#")[0] === path ? (
-                <a href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)}>
-                  {l.label}
+                <a href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)} aria-label={l.label} title={l.label}>
+                  <NavigationIcon label={l.label} />
+                  <span className="sr-only">{l.label}</span>
                 </a>
               ) : (
-                <Link href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)}>
-                  {l.label}
+                <Link href={l.href} aria-current={l.current ? "page" : undefined} className={linkClass(l.current)} aria-label={l.label} title={l.label}>
+                  <NavigationIcon label={l.label} />
+                  <span className="sr-only">{l.label}</span>
                 </Link>
               )}
             </li>
@@ -62,6 +65,6 @@ export function AppNav(props: { canAdmin: boolean; email: string | null }) {
 }
 
 const linkClass = (current: boolean) =>
-  `inline-flex min-h-9 items-center rounded-lg px-3 font-medium ${
+  `inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl px-3 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground ${
     current ? "bg-foreground text-background" : "text-muted hover:text-foreground"
   }`;

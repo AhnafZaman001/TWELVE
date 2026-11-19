@@ -31,14 +31,6 @@ function matchesFilter(section: BoardSection, f: Filter) {
   return s.includes(f);
 }
 
-function tone(section: BoardSection) {
-  const s = Object.values(section.status);
-  if (s.includes("problem") || s.includes("missing")) return "border-danger/60";
-  if (s.includes("waiting")) return "border-warn/50";
-  if (s.length > 0 && s.every((x) => x === "ok")) return "border-accent/50";
-  return "border-line";
-}
-
 // Useful moments to preview: just after each round starts and after its deadline
 function demoClocks(board: Board) {
   const times = board.rounds.flatMap((r) => [addMinutes(r.startTime, 5), addMinutes(r.deadline, 2)]);
@@ -53,6 +45,9 @@ export function LiveBoard() {
   const [show, setShow] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [search, setSearch] = useState("");
+  const [roundId, setRoundId] = useState<string | null>(null);
+  const [attention, setAttention] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -95,17 +90,22 @@ export function LiveBoard() {
 
   const sections = board.sections
     .filter((s) => groupId === "all" || s.groupId === groupId)
-    .filter((s) => matchesFilter(s, show));
+    .filter((s) => matchesFilter(s, show))
+    .filter((s) => !roundId || ["ok", "problem"].includes(s.status[roundId]))
+    .filter((s) => !attention || Object.values(s.status).some((v) => v === "missing" || v === "problem"))
+    .filter((s) => `${s.roomCode} ${s.name}`.toLowerCase().includes(search.trim().toLowerCase()));
   const open = board.sections.find((s) => s.id === openId) ?? null;
   const active = board.rounds.find((r) => r.id === board.activeRoundId);
-  const roundTag = (i: number) => `R${i + 1}`;
+  function filterSummary(value: Filter, round: string | null = null) {
+    setShow(value); setRoundId(round); setAttention(false);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-sm font-medium tracking-widest text-muted uppercase">{board.schoolName}</p>
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {board.phase === "after"
               ? "Test finished"
               : board.phase === "before"
@@ -137,7 +137,9 @@ export function LiveBoard() {
             ))}
           </select>
           {board.canEdit && (
-            <>
+            <details className="relative">
+              <summary className="cursor-pointer rounded-xl border border-line px-3 py-2">Demo tools</summary>
+              <div className="absolute right-0 z-10 mt-2 flex w-48 flex-col gap-1 rounded-xl border border-line bg-surface p-2">
           <button
             type="button"
             onClick={() => void demo("POST")}
@@ -152,84 +154,76 @@ export function LiveBoard() {
           >
             Clear
           </button>
-            </>
+              </div>
+            </details>
           )}
         </div>
       </header>
 
-      <dl
-        className="grid grid-cols-2 gap-3 lg:[grid-template-columns:repeat(var(--stats),minmax(0,1fr))]"
-        style={{ "--stats": board.rounds.length + 2 } as React.CSSProperties}
-      >
-        {board.rounds.map((r) => (
-          <Stat key={r.id} label={`${r.name} reported`} value={`${board.summary.reported[r.id]}/${board.summary.total}`} />
-        ))}
-        <Stat label="Problems" value={board.summary.problems} tone={board.summary.problems ? "danger" : undefined} />
-        <Stat label="Sections missing" value={board.summary.missing} tone={board.summary.missing ? "danger" : undefined} />
-      </dl>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <section className="flex flex-col gap-4" aria-label="Sections">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap gap-2">
-              <Dropdown
-                label="Class year"
-                value={groupId}
-                onChange={setGroupId}
-                options={[{ value: "all", label: "All years" }, ...board.groups.map((g) => ({ value: g.id, label: g.name }))]}
-              />
-              <Dropdown label="Show" value={show} onChange={setShow} options={FILTERS} />
-            </div>
-          </div>
-          {sections.length === 0 && (
-            <p className="rounded-2xl border border-line p-4 text-sm text-muted">
-              {board.sections.length ? "No sections match these filters." : "No sections placed in rooms yet. Add them in Admin → Classes."}
-            </p>
-          )}
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-6">
-            {sections.map((sec) => (
-              <li key={sec.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpenId(sec.id)}
-                  className={`flex w-full flex-col gap-2 rounded-2xl border bg-surface p-3 text-left transition hover:border-foreground ${tone(sec)}`}
-                >
-                  <span className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold">{sec.roomCode}</span>
-                    <span className="text-xs text-muted">{sec.name}</span>
-                  </span>
-                  <span className="flex gap-1">
-                    {board.rounds.map((r, i) => (
-                      <span
-                        key={r.id}
-                        className={`flex-1 rounded-md border px-1.5 py-0.5 text-center text-[11px] font-medium ${STATUS[sec.status[r.id]].chip}`}
-                        title={`${r.name}: ${STATUS[sec.status[r.id]].label}`}
-                      >
-                        {roundTag(i)}
-                      </span>
-                    ))}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="order-first flex flex-col gap-3 lg:order-none" aria-label="Alerts">
-          <h2 className="flex items-baseline gap-2 text-lg font-semibold">
-            Alerts
-            {board.alerts.length > 0 && <span className="text-sm font-normal text-muted">{board.alerts.length}</span>}
-          </h2>
-          {board.alerts.length === 0 && (
-            <p className="rounded-2xl border border-line p-4 text-sm text-muted">No alerts yet.</p>
-          )}
-          <ul className="flex flex-col gap-2">
-            {board.alerts.map((a) =>
-              a.kind === "problem" ? <ProblemAlert key={a.id} alert={a} /> : <MissingAlert key={a.id} alert={a} />,
-            )}
-          </ul>
-        </section>
-      </div>
+      <section aria-label="Reporting summary" className="flex flex-wrap gap-px overflow-hidden rounded-xl border border-line bg-line">
+        {board.rounds.map((r) => <Stat key={r.id} label={r.name} value={`${board.summary.reported[r.id]}/${board.summary.total}`}
+          selected={roundId === r.id} onClick={() => filterSummary("all", roundId === r.id ? null : r.id)} />)}
+        <Stat label="Problems" value={board.summary.problems} tone={board.summary.problems ? "danger" : undefined}
+          selected={show === "problem"} onClick={() => filterSummary(show === "problem" ? "all" : "problem")} />
+        <Stat label="Missing sections" value={board.summary.missing} tone={board.summary.missing ? "danger" : undefined}
+          selected={show === "missing"} onClick={() => filterSummary(show === "missing" ? "all" : "missing")} />
+      </section>
+      <section className="flex flex-col gap-4" aria-label="Rooms and sections">
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="search" aria-label="Search rooms or sections" placeholder="Search room or section..." value={search}
+            onChange={(e) => setSearch(e.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-sm sm:max-w-xs" />
+          <Dropdown label="Class year" value={groupId} onChange={setGroupId}
+            options={[{ value: "all", label: "All years" }, ...board.groups.map((g) => ({ value: g.id, label: g.name }))]} />
+          <Dropdown label="Show" value={show} onChange={(v) => { setShow(v); setRoundId(null); }} options={FILTERS} />
+          <button type="button" aria-pressed={attention} onClick={() => { setAttention(!attention); setShow("all"); setRoundId(null); }}
+            className={`min-h-11 rounded-xl border px-3 text-sm ${attention ? "border-foreground bg-foreground text-background" : "border-line text-muted"}`}>Needs attention</button>
+          <button type="button" onClick={() => { setSearch(""); setGroupId("all"); filterSummary("all"); }}
+            className="min-h-11 px-3 text-sm text-muted hover:text-foreground">Reset filters</button>
+        </div>
+        <div className="flex flex-wrap justify-between gap-2 text-sm text-muted" aria-live="polite">
+          <p>{sections.length} of {board.sections.length} sections{roundId && ` · Reported: ${board.rounds.find((r) => r.id === roundId)?.name}`}</p>
+          <p>{failed ? "Connection lost · retrying" : "Updates every 5 seconds"}</p>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Room reporting status by round. Select a room or status to view reports.</caption>
+            <thead className="bg-surface text-muted"><tr>
+              <th scope="col" className="px-4 py-3 font-medium">Room</th>
+              <th scope="col" className="px-4 py-3 font-medium">Section</th>
+              {board.rounds.map((r) => <th key={r.id} scope="col" className="min-w-36 px-4 py-3 font-medium">
+                <span className="block">{r.name}</span><span className="text-xs font-normal">{r.startTime} · due {r.deadline}</span>
+              </th>)}
+            </tr></thead>
+            <tbody className="divide-y divide-line">
+              {sections.map((sec) => <tr key={sec.id} className="hover:bg-surface">
+                <th scope="row" className="px-4 py-1 text-left font-semibold">
+                  <button type="button" onClick={() => setOpenId(sec.id)} aria-label={`View ${sec.roomCode}, ${sec.name}`}
+                    className="min-h-11 min-w-12 underline-offset-4 hover:underline">{sec.roomCode}</button>
+                </th>
+                <td className="whitespace-nowrap px-4 py-3">{sec.name}</td>
+                {board.rounds.map((r) => <td key={r.id} className="px-4 py-1">
+                  <button type="button" onClick={() => setOpenId(sec.id)}
+                    aria-label={`${sec.roomCode}, ${sec.name}, ${r.name}: ${STATUS[sec.status[r.id]].label}`}
+                    className={`min-h-11 whitespace-nowrap text-left ${["missing", "problem"].includes(sec.status[r.id]) ? "text-danger" : sec.status[r.id] === "ok" ? "text-accent" : sec.status[r.id] === "waiting" ? "text-warn" : "text-muted"}`}>
+                    <span aria-hidden="true" className="mr-2">{sec.status[r.id] === "ok" ? "✓" : sec.status[r.id] === "problem" ? "!" : "—"}</span>{STATUS[sec.status[r.id]].label}
+                  </button>
+                </td>)}
+              </tr>)}
+              {sections.length === 0 && <tr><td colSpan={board.rounds.length + 2} className="p-6 text-muted">
+                {board.sections.length ? "No sections match these filters." : "No sections placed in rooms yet. Add them in Admin → Classes."}
+              </td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <details className="rounded-xl border border-line p-4">
+        <summary className="cursor-pointer text-sm font-medium">Alert details <span className="ml-2 text-muted">{board.alerts.length}</span></summary>
+        <p className="mt-2 text-xs text-muted">All alerts for this day, independent of the room filters above.</p>
+        {board.alerts.length === 0 && <p className="mt-3 text-sm text-muted">No alerts yet.</p>}
+        <ul className="mt-3 grid gap-3 md:grid-cols-2">
+          {board.alerts.map((a) => a.kind === "problem" ? <ProblemAlert key={a.id} alert={a} /> : <MissingAlert key={a.id} alert={a} />)}
+        </ul>
+      </details>
 
       {open && <SectionDetail section={open} board={board} onClose={() => setOpenId(null)} />}
     </main>
@@ -305,15 +299,12 @@ function MissingAlert({ alert: a }: { alert: Missing }) {
   );
 }
 
-function Stat(props: { label: string; value: string | number; tone?: "danger" }) {
-  return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
-      <dt className="text-sm text-muted">{props.label}</dt>
-      <dd className={`mt-1 text-3xl font-semibold tabular-nums ${props.tone === "danger" ? "text-danger" : ""}`}>
-        {props.value}
-      </dd>
-    </div>
-  );
+function Stat(props: { label: string; value: string | number; tone?: "danger"; selected: boolean; onClick: () => void }) {
+  return <button type="button" onClick={props.onClick} aria-pressed={props.selected}
+    className={`min-w-36 flex-1 bg-surface px-4 py-3 text-left hover:bg-background ${props.selected ? "ring-1 ring-inset ring-foreground" : ""}`}>
+    <span className="block text-xs text-muted">{props.label}</span>
+    <span className={`mt-1 block text-xl font-semibold tabular-nums ${props.tone === "danger" ? "text-danger" : ""}`}>{props.value}</span>
+  </button>;
 }
 
 function SectionDetail(props: { section: BoardSection; board: Board; onClose: () => void }) {
@@ -377,6 +368,9 @@ function SectionDetail(props: { section: BoardSection; board: Board; onClose: ()
                 </li>
               ))}
             </ul>
+            {rep.problems.length > 0 && <ul className="flex flex-col gap-1 text-sm text-danger">
+              {rep.problems.map((problem, i) => <li key={i}>{problem}</li>)}
+            </ul>}
             {rep.attendance && (
               <p className="text-sm text-muted">
                 Class strength {rep.attendance.total} · Present {rep.attendance.present} · Absent{" "}
