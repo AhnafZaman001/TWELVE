@@ -14,11 +14,7 @@ export function sampleDay(setup: Setup, now = new Date()): NewReport[] {
   const teachers = setup.staff.filter((s) => s.active && s.role === "teacher");
   const incharges = setup.staff.filter((s) => s.active && s.role === "floor_incharge");
   const rounds = roundsByTime(setup.rounds);
-  const placed = setup.sections
-    .filter((s) => s.active && s.roomId)
-    .sort((a, b) => a.sort - b.sort)
-    .map((sec) => ({ sec, room: setup.rooms.find((r) => r.id === sec.roomId && r.active) }))
-    .filter((x): x is { sec: typeof x.sec; room: NonNullable<typeof x.room> } => Boolean(x.room));
+  const placed = setup.rooms.filter((r) => r.active).sort((a, b) => a.sort - b.sort).map((room) => ({ room }));
   if (!teachers.length || !rounds.length) return [];
 
   const out: NewReport[] = [];

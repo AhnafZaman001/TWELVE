@@ -39,7 +39,7 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
       return (
         <>
           <AppNav canAdmin={canAccess(viewer, "admin")} email={viewer.email} />
-          <LiveBoard focusSectionId={sectionInRoom(setup, room.id)?.id ?? null} />
+          <LiveBoard focusSectionId={room.id} />
         </>
       );
     }

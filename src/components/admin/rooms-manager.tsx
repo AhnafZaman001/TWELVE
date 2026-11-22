@@ -2,23 +2,24 @@
 
 import { useState } from "react";
 import type { Room, Setup } from "@/lib/types";
-import { EditorFrame, LineChip, ListHeader, TileBlock, byName, field, saveRow, useEditor } from "./tile-kit";
+import { EditorFrame, LineChip, ListHeader, TileBlock, byName, deleteRow, field, saveRow, type SaveResult } from "./tile-kit";
 
-// Rooms as small tiles, split into rooms with a section, empty rooms and
-// rooms switched off. "Add rooms" takes a list or a range like K-51 to K-60.
+// Rooms are the main thing: one tile per room (K-0 ... K-50). Which sections sit
+// in a room is an optional note typed on the room, e.g. "F-1A, F-1B".
+// The note is kept as the room's one section record, so reports and the board
+// keep working unchanged.
 export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
   const { setup } = props;
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const sectionIn = (r: Room) => setup.sections.find((s) => s.roomId === r.id && s.active);
+  const noteOf = (r: Room) => setup.sections.find((s) => s.roomId === r.id && s.active)?.name ?? "";
   const q = query.trim().toLowerCase();
-  const matches = (r: Room) => !q || r.code.toLowerCase().includes(q) || (sectionIn(r)?.name.toLowerCase().includes(q) ?? false);
+  const matches = (r: Room) => !q || r.code.toLowerCase().includes(q) || noteOf(r).toLowerCase().includes(q);
   const rooms = [...setup.rooms].sort((a, b) => byName(a.code, b.code));
   const blocks = [
-    { key: "used", name: "With a section", rows: rooms.filter((r) => r.active && sectionIn(r)) },
-    { key: "empty", name: "Empty", rows: rooms.filter((r) => r.active && !sectionIn(r)) },
+    { key: "on", name: "Rooms", rows: rooms.filter((r) => r.active) },
     { key: "off", name: "Switched off", rows: rooms.filter((r) => !r.active) },
   ].filter((b) => b.rows.length > 0);
   const changed = () => {
@@ -63,7 +64,7 @@ export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
             startClosed={block.key === "off"}
             openId={openId}
             onOpen={setOpenId}
-            items={rows.map((r) => ({ id: r.id, title: r.code, sub: !r.active ? "Off" : "", off: !r.active }))}
+            items={rows.map((r) => ({ id: r.id, title: r.code, sub: r.active ? noteOf(r) : "Off", off: !r.active }))}
             editor={open && <EditRoom key={open.id} room={open} setup={setup} onClose={() => setOpenId(null)} onChanged={changed} />}
           />
         );
@@ -73,34 +74,59 @@ export function RoomsManager(props: { setup: Setup; onChanged: () => void }) {
 }
 
 function EditRoom(props: { room: Room; setup: Setup; onClose: () => void; onChanged: () => void }) {
-  const ed = useEditor("rooms", props.room, props.onChanged);
-  const { draft, set } = ed;
-  const section = props.setup.sections.find((s) => s.roomId === props.room.id && s.active);
+  const { room, setup } = props;
+  const existing = setup.sections.find((s) => s.roomId === room.id && s.active) ?? null;
+  const [draft, setDraft] = useState(room);
+  const [note, setNote] = useState(existing?.name ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    const saved = await saveRow("rooms", { ...draft });
+    if (!saved.ok) {
+      setBusy(false);
+      return setError(saved.error ?? "Could not save");
+    }
+    const text = note.trim();
+    let out: SaveResult = { ok: true };
+    if (existing && !text) out = await deleteRow("sections", existing.id);
+    else if (existing && text !== existing.name) out = await saveRow("sections", { ...existing, name: text });
+    else if (!existing && text) {
+      const sort = Math.max(0, ...setup.sections.map((s) => s.sort)) + 1;
+      out = await saveRow("sections", { name: text, groupId: null, roomId: room.id, active: true, sort });
+    }
+    setBusy(false);
+    if (!out.ok) return setError(out.error ?? "Could not save the sections");
+    props.onChanged();
+  }
+
+  async function remove() {
+    if (!window.confirm(`Delete room "${room.code}"? Its printed QR card stops working. Past reports keep the room name.`)) return;
+    setBusy(true);
+    if (existing) await deleteRow("sections", existing.id);
+    const out = await deleteRow("rooms", room.id);
+    setBusy(false);
+    if (!out.ok) return setError(out.error ?? "Could not delete");
+    props.onChanged();
+  }
+
   return (
-    <EditorFrame
-      error={ed.error}
-      busy={ed.busy}
-      onSave={ed.save}
-      onClose={props.onClose}
-      onDelete={() =>
-        ed.remove(
-          `Delete room “${props.room.code}”?${section ? ` Section ${section.name} will have no room.` : ""} Its printed QR card stops working.`,
-        )
-      }
-    >
-      <div className="grid gap-3 sm:grid-cols-[2fr_auto]">
+    <EditorFrame error={error} busy={busy} onSave={() => void save()} onClose={props.onClose} onDelete={() => void remove()}>
+      <div className="grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
         <label className="flex flex-col gap-1">
           Room
-          <input value={draft.code} onChange={(e) => set("code", e.target.value)} className={field} />
+          <input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} className={field} />
+        </label>
+        <label className="flex flex-col gap-1">
+          Sections in this room (optional)
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. F-1A, F-1B" className={field} />
         </label>
         <label className="flex items-center gap-2 sm:mt-6">
-          <input type="checkbox" checked={draft.active} onChange={(e) => set("active", e.target.checked)} className="size-4" />
+          <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} className="size-4" />
           Active
         </label>
       </div>
-      <p className="text-muted">
-        {section ? `Section ${section.name} is in this room.` : "No section in this room."} To change that, use the Sections tab.
-      </p>
     </EditorFrame>
   );
 }

@@ -86,13 +86,15 @@ export function buildBoard(input: {
     deadline: addMinutes(r.startTime, setup.school.bufferMinutes),
   }));
   const todays = input.reports.filter((r) => localParts(new Date(r.receivedAt), tz).dateKey === today.dateKey);
-  const roomCode = (id: string | null) => setup.rooms.find((r) => r.id === id)?.code ?? "No room";
+  // Rooms are the rows. A room's sections are an optional note (e.g. "F-1A, F-1B")
+  // kept as the room's one section record, so nothing else needs to change.
+  const noteOf = (roomId: string) => setup.sections.find((s) => s.roomId === roomId && s.active)?.name ?? "";
 
-  const sections: BoardSection[] = setup.sections
-    .filter((s) => s.active && s.roomId)
-    .sort((a, b) => a.sort - b.sort)
-    .map((sec) => {
-      const mine = todays.filter((r) => (r.sectionId ? r.sectionId === sec.id : r.roomId === sec.roomId));
+  const sections: BoardSection[] = setup.rooms
+    .filter((r) => r.active)
+    .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code, undefined, { numeric: true }))
+    .map((room) => {
+      const mine = todays.filter((r) => r.roomId === room.id);
       const status: Record<string, RoundStatus> = {};
       for (const round of rounds) {
         const inRound = mine.filter((r) => r.roundId === round.id);
@@ -107,10 +109,10 @@ export function buildBoard(input: {
                 : "upcoming";
       }
       return {
-        id: sec.id,
-        name: sec.name,
-        roomCode: roomCode(sec.roomId),
-        groupId: sec.groupId,
+        id: room.id,
+        name: noteOf(room.id),
+        roomCode: room.code,
+        groupId: null,
         status,
         reports: mine
           .map((r) => ({
@@ -129,7 +131,7 @@ export function buildBoard(input: {
       };
     });
 
-  const label = (s: BoardSection) => `${s.roomCode} · ${s.name}`;
+  const label = (s: BoardSection) => (s.name ? `${s.roomCode} · ${s.name}` : s.roomCode);
   const alerts: BoardAlert[] = [];
   for (const sec of sections) {
     for (const rep of sec.reports) {

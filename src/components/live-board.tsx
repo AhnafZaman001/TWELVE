@@ -41,7 +41,6 @@ export function LiveBoard(props: { focusSectionId?: string | null }) {
   const [board, setBoard] = useState<(Board & { backend?: string; canEdit?: boolean }) | null>(null);
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
-  const [groupId, setGroupId] = useState<string>("all");
   const [show, setShow] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(props.focusSectionId ?? null); // a scanned room opens its details
   const [reloadKey, setReloadKey] = useState(0);
@@ -89,7 +88,6 @@ export function LiveBoard(props: { focusSectionId?: string | null }) {
   }
 
   const sections = board.sections
-    .filter((s) => groupId === "all" || s.groupId === groupId)
     .filter((s) => matchesFilter(s, show))
     .filter((s) => !roundId || ["ok", "problem"].includes(s.status[roundId]))
     .filter((s) => !attention || Object.values(s.status).some((v) => v === "missing" || v === "problem"))
@@ -165,23 +163,21 @@ export function LiveBoard(props: { focusSectionId?: string | null }) {
           selected={roundId === r.id} onClick={() => filterSummary("all", roundId === r.id ? null : r.id)} />)}
         <Stat label="Problems" value={board.summary.problems} tone={board.summary.problems ? "danger" : undefined}
           selected={show === "problem"} onClick={() => filterSummary(show === "problem" ? "all" : "problem")} />
-        <Stat label="Missing sections" value={board.summary.missing} tone={board.summary.missing ? "danger" : undefined}
+        <Stat label="Missing rooms" value={board.summary.missing} tone={board.summary.missing ? "danger" : undefined}
           selected={show === "missing"} onClick={() => filterSummary(show === "missing" ? "all" : "missing")} />
       </section>
       <section className="flex flex-col gap-4" aria-label="Rooms and sections">
         <div className="flex flex-wrap items-center gap-2">
           <input type="search" aria-label="Search rooms or sections" placeholder="Search room or section..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-sm sm:max-w-xs" />
-          <Dropdown label="Class year" value={groupId} onChange={setGroupId}
-            options={[{ value: "all", label: "All years" }, ...board.groups.map((g) => ({ value: g.id, label: g.name }))]} />
           <Dropdown label="Show" value={show} onChange={(v) => { setShow(v); setRoundId(null); }} options={FILTERS} />
           <button type="button" aria-pressed={attention} onClick={() => { setAttention(!attention); setShow("all"); setRoundId(null); }}
             className={`min-h-11 rounded-xl border px-3 text-sm ${attention ? "border-foreground bg-foreground text-background" : "border-line text-muted"}`}>Needs attention</button>
-          <button type="button" onClick={() => { setSearch(""); setGroupId("all"); filterSummary("all"); }}
+          <button type="button" onClick={() => { setSearch(""); filterSummary("all"); }}
             className="min-h-11 px-3 text-sm text-muted hover:text-foreground">Reset filters</button>
         </div>
         <div className="flex flex-wrap justify-between gap-2 text-sm text-muted" aria-live="polite">
-          <p>{sections.length} of {board.sections.length} sections{roundId && ` · Reported: ${board.rounds.find((r) => r.id === roundId)?.name}`}</p>
+          <p>{sections.length} of {board.sections.length} rooms{roundId && ` · Reported: ${board.rounds.find((r) => r.id === roundId)?.name}`}</p>
           <p>{failed ? "Connection lost · retrying" : "Updates every 5 seconds"}</p>
         </div>
         <div className="overflow-x-auto rounded-xl border border-line">
@@ -189,7 +185,7 @@ export function LiveBoard(props: { focusSectionId?: string | null }) {
             <caption className="sr-only">Room reporting status by round. Select a room or status to view reports.</caption>
             <thead className="bg-surface text-muted"><tr>
               <th scope="col" className="px-4 py-3 font-medium">Room</th>
-              <th scope="col" className="px-4 py-3 font-medium">Section</th>
+              <th scope="col" className="px-4 py-3 font-medium">Sections</th>
               {board.rounds.map((r) => <th key={r.id} scope="col" className="min-w-36 px-4 py-3 font-medium">
                 <span className="block">{r.name}</span><span className="text-xs font-normal">{r.startTime} · due {r.deadline}</span>
               </th>)}
@@ -197,20 +193,20 @@ export function LiveBoard(props: { focusSectionId?: string | null }) {
             <tbody className="divide-y divide-line">
               {sections.map((sec) => <tr key={sec.id} className="hover:bg-surface">
                 <th scope="row" className="px-4 py-1 text-left font-semibold">
-                  <button type="button" onClick={() => setOpenId(sec.id)} aria-label={`View ${sec.roomCode}, ${sec.name}`}
+                  <button type="button" onClick={() => setOpenId(sec.id)} aria-label={`View ${sec.roomCode}`}
                     className="min-h-11 min-w-12 underline-offset-4 hover:underline">{sec.roomCode}</button>
                 </th>
                 <td className="whitespace-nowrap px-4 py-3">{sec.name}</td>
                 {board.rounds.map((r) => <td key={r.id} className="px-4 py-1">
                   <button type="button" onClick={() => setOpenId(sec.id)}
-                    aria-label={`${sec.roomCode}, ${sec.name}, ${r.name}: ${STATUS[sec.status[r.id]].label}`}
+                    aria-label={`${sec.roomCode}, ${r.name}: ${STATUS[sec.status[r.id]].label}`}
                     className={`min-h-11 whitespace-nowrap text-left ${["missing", "problem"].includes(sec.status[r.id]) ? "text-danger" : sec.status[r.id] === "ok" ? "text-accent" : sec.status[r.id] === "waiting" ? "text-warn" : "text-muted"}`}>
                     <span aria-hidden="true" className="mr-2">{sec.status[r.id] === "ok" ? "✓" : sec.status[r.id] === "problem" ? "!" : "—"}</span>{STATUS[sec.status[r.id]].label}
                   </button>
                 </td>)}
               </tr>)}
               {sections.length === 0 && <tr><td colSpan={board.rounds.length + 2} className="p-6 text-muted">
-                {board.sections.length ? "No sections match these filters." : "No sections placed in rooms yet. Add them in Admin → Classes."}
+                {board.sections.length ? "No rooms match these filters." : "No rooms yet. Add them in Admin → Rooms."}
               </td></tr>}
             </tbody>
           </table>
@@ -314,23 +310,22 @@ function SectionDetail(props: { section: BoardSection; board: Board; onClose: ()
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const group = board.groups.find((g) => g.id === section.groupId);
 
   return (
     <div className="fixed inset-0 z-10 flex justify-end bg-black/40" onClick={onClose}>
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label={`Section ${section.name}`}
+        aria-label={`Room ${section.roomCode}`}
         onClick={(e) => e.stopPropagation()}
         className="flex h-full w-full max-w-md flex-col gap-5 overflow-y-auto bg-background p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">
-              {section.roomCode} · {section.name}
+              {section.roomCode}
             </h2>
-            {group && <p className="text-sm text-muted">{group.name}</p>}
+            {section.name && <p className="text-sm text-muted">{section.name}</p>}
           </div>
           <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-line px-3 text-sm">
             Close

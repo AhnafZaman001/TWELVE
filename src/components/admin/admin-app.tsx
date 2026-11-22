@@ -8,15 +8,13 @@ import { EntityTable } from "./entity-table";
 import { QrCodes } from "./qr-codes";
 import { RoomsManager } from "./rooms-manager";
 import { SchoolForm } from "./school-form";
-import { SectionsManager } from "./sections-manager";
 import { StaffManager } from "./staff-manager";
 import { TestManager } from "./test-manager";
 import { SubTabs } from "./tile-kit";
 
 // The tabs live in the top bar (AppNav); this screen shows the one named in
-// the address, e.g. /admin#test. Classes = groups, sections and rooms;
+// the address, e.g. /admin#test. Rooms = the test rooms (sections are an optional note on each);
 // Test = rounds and their checks; People = staff and admins.
-const CLASS_VIEWS = ["Sections", "Rooms"] as const;
 const PEOPLE_VIEWS = ["Staff", "Admins"] as const;
 
 export function AdminApp(props: { passwordSignIn?: boolean }) {
@@ -79,12 +77,7 @@ export function AdminApp(props: { passwordSignIn?: boolean }) {
 
       {error && <p className="text-sm text-danger print:hidden">{error}</p>}
 
-      {tab === "Classes" && (
-        <>
-          <SubTabs options={CLASS_VIEWS} value={view as (typeof CLASS_VIEWS)[number]} onChange={(v) => go("Classes", v)} />
-          {view === "Rooms" ? <RoomsManager setup={setup} onChanged={load} /> : <SectionsManager setup={setup} onChanged={load} />}
-        </>
-      )}
+      {tab === "Rooms" && <RoomsManager setup={setup} onChanged={load} />}
       {tab === "Test" && <TestManager setup={setup} onChanged={load} />}
       {tab === "People" && (
         <>

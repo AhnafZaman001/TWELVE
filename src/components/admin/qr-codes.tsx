@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { qrCodeLabel, type RenewScope } from "@/lib/qr";
 import { roundsByTime } from "@/lib/setup";
-import type { Room, Setup } from "@/lib/types";
-import type { ThemeKey } from "@/lib/qr-themes";
+import type { Setup } from "@/lib/types";
 import { QrCard, type Paper } from "../qr-card";
 
 const ROTATE_OPTIONS = [
@@ -19,21 +18,14 @@ const ROTATE_OPTIONS = [
 export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   const { setup } = props;
   const [paper, setPaper] = useState<Paper>("dark");
-  const [groupId, setGroupId] = useState("all");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const origin = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const groups = [...setup.groups].sort((a, b) => a.sort - b.sort);
   const rounds = roundsByTime(setup.rounds);
-  const sectionOf = (room: Room) => setup.sections.find((s) => s.roomId === room.id && s.active);
-  // each group's colour is set in Admin → Groups
-  const themeFor = (gid: string | null | undefined): ThemeKey =>
-    groups.find((g) => g.id === gid)?.qrTheme ?? "midnight";
   const rooms = setup.rooms
-    .filter((r) => r.active && sectionOf(r))
-    .filter((r) => groupId === "all" || sectionOf(r)?.groupId === groupId)
-    .sort((a, b) => (sectionOf(a)?.sort ?? 0) - (sectionOf(b)?.sort ?? 0));
+    .filter((r) => r.active)
+    .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code, undefined, { numeric: true }));
   const issued = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -65,24 +57,12 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   }
 
   const select = "min-h-10 rounded-xl border border-line bg-surface px-3";
-  const groupName = groups.find((g) => g.id === groupId)?.name;
 
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-col gap-4 print:hidden">
 
         <div className="flex flex-wrap items-end gap-3 text-sm">
-          <label className="flex flex-col gap-1">
-            Show
-            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className={select}>
-              <option value="all">All groups</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </label>
           <label className="flex flex-col gap-1">
             Paper
             <select value={paper} onChange={(e) => setPaper(e.target.value as Paper)} className={select}>
@@ -104,15 +84,10 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
             <button
               type="button"
               disabled={busy || rooms.length === 0}
-              onClick={() =>
-                void renew(
-                  groupId === "all" ? { scope: "all" } : { scope: "group", groupId },
-                  groupId === "all" ? "all rooms" : `all of ${groupName}`,
-                )
-              }
+              onClick={() => void renew({ scope: "all" }, "all rooms")}
               className="min-h-10 rounded-xl border border-danger px-4 font-semibold text-danger disabled:opacity-50"
             >
-              New QR for {groupId === "all" ? "all rooms" : groupName}
+              New QR for all rooms
             </button>
             <label className="ml-auto flex items-center gap-2">
               Auto-renew
@@ -138,24 +113,23 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
 
       {rooms.length === 0 && (
         <p className="rounded-2xl border border-line p-4 text-sm text-muted print:hidden">
-          No rooms with a section yet. Place sections in rooms first.
+          No rooms yet. Add them in Admin → Rooms.
         </p>
       )}
 
       <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 print:block">
         {rooms.map((room) => {
-          const section = sectionOf(room);
+          const section = setup.sections.find((sec) => sec.roomId === room.id && sec.active);
           return (
             <li key={room.id} className="flex flex-col gap-2 print:break-after-page">
               <QrCard
                 url={`${origin}/r/${room.token}`}
                 roomCode={room.code}
                 sectionName={section?.name}
-                groupName={groups.find((g) => g.id === section?.groupId)?.name}
                 rounds={rounds}
                 codeLabel={qrCodeLabel(room.token)}
                 issuedOn={issued(room.qrIssuedAt)}
-                theme={themeFor(section?.groupId)}
+                theme="midnight"
                 paper={paper}
               />
               <div className="flex items-center justify-between gap-2 text-xs text-muted print:hidden">
