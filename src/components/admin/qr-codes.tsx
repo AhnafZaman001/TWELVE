@@ -73,7 +73,7 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
             onClick={() => window.print()}
             className="min-h-10 rounded-xl bg-foreground px-5 font-semibold text-background"
           >
-            Print {rooms.length} card{rooms.length === 1 ? "" : "s"}
+            Print {rooms.length} card{rooms.length === 1 ? "" : "s"} · {Math.ceil(rooms.length / 4)} sheet{Math.ceil(rooms.length / 4) === 1 ? "" : "s"}
           </button>
         </div>
 
@@ -115,31 +115,32 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
         </p>
       )}
 
-      <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 print:block">
-        {rooms.map((room) => {
-          return (
-            <li key={room.id} className="flex flex-col gap-2 print:break-after-page">
-              <QrCard
-                url={`${origin}/r/${room.token}`}
-                roomCode={room.code}
-                theme="midnight"
-                paper={paper}
-              />
-              <div className="flex items-center justify-between gap-2 text-xs text-muted print:hidden">
-                <span>Issued {issued(room.qrIssuedAt)}</span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void renew({ scope: "rooms", roomIds: [room.id] }, room.code)}
-                  className="min-h-9 rounded-lg px-2 font-medium text-danger"
-                >
-                  New QR for {room.code}
-                </button>
+      {/* On paper: four cards per A4 sheet (2 x 2), to cut the sheet into four. On screen: a normal grid. */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 print:block">
+        {Array.from({ length: Math.ceil(rooms.length / 4) }, (_, page) => (
+          <div
+            key={page}
+            className="contents print:grid print:h-[297mm] print:w-[210mm] print:grid-cols-2 print:grid-rows-2 print:break-after-page"
+          >
+            {rooms.slice(page * 4, page * 4 + 4).map((room) => (
+              <div key={room.id} className="flex flex-col gap-2 print:block print:h-[148.5mm] print:w-[105mm]">
+                <QrCard url={`${origin}/r/${room.token}`} roomCode={room.code} theme="midnight" paper={paper} />
+                <div className="flex items-center justify-between gap-2 text-xs text-muted print:hidden">
+                  <span>Issued {issued(room.qrIssuedAt)}</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void renew({ scope: "rooms", roomIds: [room.id] }, room.code)}
+                    className="min-h-9 rounded-lg px-2 font-medium text-danger"
+                  >
+                    New QR for {room.code}
+                  </button>
+                </div>
               </div>
-            </li>
-          );
-        })}
-      </ul>
+            ))}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
