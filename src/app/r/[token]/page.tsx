@@ -2,8 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { NoAccess } from "@/components/access-gate";
+import { AppNav } from "@/components/app-nav";
 import { CheckFlow } from "@/components/check-flow";
-import { authEnabled, getViewer } from "@/lib/auth";
+import { LiveBoard } from "@/components/live-board";
+import { authEnabled, canAccess, getViewer } from "@/lib/auth";
 import { getBackend } from "@/lib/data";
 import { currentRound, roundsByTime, sectionInRoom } from "@/lib/setup";
 import type { Staff } from "@/lib/types";
@@ -27,17 +29,22 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
   const setup = await db.getSetup();
 
   // With sign-in on, the teacher is whoever signed in; without it (sample mode) they pick their name.
-  // An admin who is not on the staff list gets a preview: the same cards, nothing saved.
+  // Owners, admins, coordinators and floor incharges never get the question cards:
+  // scanning opens the live board (reports and issues for every room) with this room open.
   let me: Staff | null = null;
-  let preview = false;
   if (authEnabled) {
     const viewer = await getViewer(setup);
     if (!viewer) redirect(`/login?next=${encodeURIComponent(`/r/${token}`)}`);
+    if (viewer.admin || viewer.staff?.role === "floor_incharge") {
+      return (
+        <>
+          <AppNav canAdmin={canAccess(viewer, "admin")} email={viewer.email} />
+          <LiveBoard focusSectionId={sectionInRoom(setup, room.id)?.id ?? null} />
+        </>
+      );
+    }
     if (viewer.staff) {
       me = viewer.staff;
-    } else if (viewer.admin) {
-      preview = true;
-      me = { id: "preview", name: viewer.admin.name || viewer.email, email: null, role: "teacher", active: true };
     } else {
       return <NoAccess email={viewer.email}>Your email is not on the staff list. Ask the admin to add it.</NoAccess>;
     }
@@ -66,8 +73,7 @@ async function RoomFlow(props: Pick<PageProps<"/r/[token]">, "params" | "searchP
       endTime={setup.school.endTime}
       checks={setup.checks.filter((c) => c.active && c.roundId === round.id).sort((a, b) => a.sort - b.sort)}
       me={me}
-      preview={preview}
-      tryRounds={preview || !authEnabled ? rounds : undefined}
+      tryRounds={!authEnabled ? rounds : undefined}
       staff={me ? [] : setup.staff.filter((s) => s.active).map((s) => ({ ...s, email: null }))}
     />
   );

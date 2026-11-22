@@ -37,13 +37,13 @@ function demoClocks(board: Board) {
   return [...new Set([...times, board.endTime])].sort();
 }
 
-export function LiveBoard() {
+export function LiveBoard(props: { focusSectionId?: string | null }) {
   const [board, setBoard] = useState<(Board & { backend?: string; canEdit?: boolean }) | null>(null);
   const [failed, setFailed] = useState(false);
   const [clock, setClock] = useState<string>(""); // "" = real time
   const [groupId, setGroupId] = useState<string>("all");
   const [show, setShow] = useState<Filter>("all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(props.focusSectionId ?? null); // a scanned room opens its details
   const [reloadKey, setReloadKey] = useState(0);
   const [search, setSearch] = useState("");
   const [roundId, setRoundId] = useState<string | null>(null);
