@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { qrCodeLabel, type RenewScope } from "@/lib/qr";
-import { roundsByTime } from "@/lib/setup";
+import type { RenewScope } from "@/lib/qr";
 import type { Setup } from "@/lib/types";
 import { QrCard, type Paper } from "../qr-card";
 
@@ -22,7 +21,6 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
 
   const origin = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const rounds = roundsByTime(setup.rounds);
   const rooms = setup.rooms
     .filter((r) => r.active)
     .sort((a, b) => a.sort - b.sort || a.code.localeCompare(b.code, undefined, { numeric: true }));
@@ -119,16 +117,11 @@ export function QrCodes(props: { setup: Setup; onChanged: () => void }) {
 
       <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 print:block">
         {rooms.map((room) => {
-          const section = setup.sections.find((sec) => sec.roomId === room.id && sec.active);
           return (
             <li key={room.id} className="flex flex-col gap-2 print:break-after-page">
               <QrCard
                 url={`${origin}/r/${room.token}`}
                 roomCode={room.code}
-                sectionName={section?.name}
-                rounds={rounds}
-                codeLabel={qrCodeLabel(room.token)}
-                issuedOn={issued(room.qrIssuedAt)}
                 theme="midnight"
                 paper={paper}
               />
